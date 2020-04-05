@@ -1,0 +1,15 @@
+<html>
+	<head>
+		<title>Вход в систему</title>
+	</head>
+	<body>
+		<form action="/login/" method="post">
+			<input type="text" name="username">
+			<input type="password" name="password">
+			<input type="submit" value="Войти">
+			{% if error %}
+				<span>{{ error }}</span>
+			{% endif %}
+		</form>
+	</body>
+</html>
