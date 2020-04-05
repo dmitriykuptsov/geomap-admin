@@ -46,9 +46,10 @@ def db_disconnect(exception=None):
 	g.db.close();
 
 def exit_handler():
-	db = connect_to_database();
-	cur = db.cursor(MySQLdb.cursors.DictCursor);
-	db.close();
+	"""
+	Perform graceful shutdown
+	"""
+	g.db.close();
 
 atexit.register(exit_handler);
 
