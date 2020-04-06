@@ -1,0 +1,28 @@
+<html>
+	<head>
+		<title>Административная страница</title>
+	</head>
+	<body>
+		<form action="/areas/" method="get" onchange="this.submit()">
+			<select name="region_id">
+				{% for region in regions %}
+				<option value="{{ region.region_id }}">{{ region.name }}</option>
+				{% endfor %} 
+			</select>
+		</form>
+		<table>
+			<th>
+				<td>Район</td>
+				<td>Действие</td>
+			</th>
+			{% for area in areas %}
+			<tr>
+				<td>{{ area.name }}</td>
+				<td>
+					<a href="/delete_area?area_id={{ area.area_id }}&region_id={{ area.region_id }}">Удалить</a>
+					<a href="/modify_area?area_id={{ area.area_id }}&region_id={{ area.region_id }}">Редактировать</a>
+				</td>
+			</tr>
+			{% endfor %}
+	</body>
+</html>

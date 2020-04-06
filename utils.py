@@ -32,6 +32,6 @@ class Utils():
 
 	@staticmethod
 	def is_ip_in_the_same_subnet(ip, subnet):
-		ip = ip_to_int(ip);
-		subnet = ip_to_int(subnet);
+		ip = Utils.ip_to_int(ip);
+		subnet = Utils.ip_to_int(subnet);
 		return ((ip & subnet) == subnet);

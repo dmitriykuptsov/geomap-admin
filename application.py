@@ -3,7 +3,6 @@ from flask import Flask
 from flask import request, jsonify, render_template, redirect, url_for, make_response
 from flask import json,Response
 from flask import g
-#from flask_cors import CORS
 from logging.config import dictConfig
 import numpy as np
 import decimal
@@ -54,7 +53,8 @@ def exit_handler():
 atexit.register(exit_handler);
 
 def ip_based_access_control(ip, subnet):
-	return (Utils.is_ip_in_the_same_subnet(ip, subnet) | ip == "127.0.0.1");
+	# This will not work if server is behind the NAT
+	return (Utils.is_ip_in_the_same_subnet(ip, subnet) or ip == "127.0.0.1");
 
 def valid_login(username, password):
 	if not re.match("^[a-z0-9]{5,100}$", username):
@@ -62,7 +62,6 @@ def valid_login(username, password):
 	if not re.match("^(?=.*[A-Z]+)(?=.*[a-z]+)(?=.*[0-9]+)(?=.*[$#%]+)", password) or \
 		not re.match("^[a-zA-Z0-9#$%&@]{10,100}$", password):
 		return LoginStatus(False, None, None);
-	
 	query = """SELECT u.id AS user_id, u.role_id, r.role FROM users u 
 		INNER JOIN roles r ON r.id = u.role_id 
 		WHERE u.username = %s AND u.password = SHA2((%s), 256) AND enabled = TRUE;""";
@@ -74,9 +73,18 @@ def valid_login(username, password):
 	user_id = row["user_id"];
 	return LoginStatus(True, role_id, user_id)
 	
+def is_valid_session(cookie):
+	return Token.is_valid(Token.decode(cookie));
+
+def is_admin(cookie):
+	query = "SELECT id FROM roles WHERE role LIKE 'admin'";
+	g.cur.execute(query);
+	row = g.cur.fetchone();
+	return row["id"] == Token.get_role_id(Token.decode(request.cookies["token"]));
+
 @app.route("/")
 def default():
-	return redirect("/login/")
+	return make_response(redirect("/login/"));
 
 @app.route("/login/", methods=["GET", "POST"])
 def login():
@@ -88,7 +96,7 @@ def login():
 			expire_date = datetime.datetime.utcnow() + \
 				datetime.timedelta(seconds=config["MAX_SESSION_DURATION_IN_SECONDS"])
 			random_token = Utils.token_hex();
-			response = make_response(redirect(url_for('admin')));
+			response = make_response(redirect(url_for('areas')));
 			response.set_cookie(
 				"token", 
 				Token.encode(
@@ -104,15 +112,66 @@ def login():
 			return response
 		else:
 			error = u"Неверное имя пользователя или пароль";
-			return render_template('login.html', error=error);
+			return render_template("login.html", error=error);
 	elif request.method == "GET":
-		return render_template('login.html', error=None);
+		return render_template("login.html", error=None);
 
-@app.route("/admin/", methods=["GET", "POST"])
-def admin():
+@app.route("/areas/", methods=["GET", "POST"])
+def areas():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies["token"]):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies["token"]):
+		return make_response(redirect(url_for("login")));
+	role_id = Token.get_role_id(Token.decode(request.cookies["token"]));
+	if request.method == "GET":
+		region_id = request.args.get("region_id", None);
+		query = """SELECT a.id, a.region_id, a.area_id, a.name_ru FROM areas a 
+				INNER JOIN permissions p 
+				ON p.resource_id = a.resource_id
+				WHERE a.area_id = 0 AND p.role_id = %s
+				AND p.access_right_id = (SELECT r.id FROM rights r WHERE r.access_right = "read")
+				""";
+		g.cur.execute(query, [role_id]);
+		rows = g.cur.fetchall();
+		regions = [];
+		areas = [];
+		if not region_id:
+			region_id = rows[0]["region_id"];
+		for row in rows:
+			if row["region_id"] == int(region_id):
+				regions.insert(0, {
+					"id": row["id"], 
+					"name": row["name_ru"], 
+					"region_id": row["region_id"]
+				});
+			else:
+				regions.append({
+					"id": row["id"], 
+					"name": row["name_ru"], 
+					"region_id": row["region_id"]
+				});
+		query = """
+				SELECT a.id, a.name_ru, a.area_id, a.region_id FROM areas a 
+				INNER JOIN permissions p
+				ON p.resource_id = a.resource_id
+				WHERE a.region_id = %s AND a.area_id <> 0 AND p.role_id = %s
+				AND p.access_right_id = (SELECT r.id FROM rights r WHERE r.access_right = "read")
+				""";
+		g.cur.execute(query, [int(region_id), role_id]);
+		rows = g.cur.fetchall();
+		#print(g.cur._last_executed);
+		for row in rows:
+			areas.append({
+				"id": row["id"], 
+				"name": row["name_ru"], 
+				"area_id": row["area_id"], 
+				"region_id": row["region_id"]
+				});
+		return render_template("areas.html", regions = regions, areas = areas);
+	else:
 		return redirect(url_for('login'));
-	return render_template('admin.html');
 
 if __name__ == "__main__":
 	app.run();
