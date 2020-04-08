@@ -82,6 +82,50 @@ def is_admin(cookie):
 	row = g.cur.fetchone();
 	return row["id"] == Token.get_role_id(Token.decode(request.cookies["token"]));
 
+def get_default_permissions():
+	query = "SELECT id, role FROM roles";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	permissions = [];
+	for row in rows:
+		if row["role"] == "admin":
+			permissions.append({"id": row["id"], "role": row["role"], "checked": True});
+		else:
+			permissions.append({"id": row["id"], "role": row["role"], "checked": False});
+	return permissions;
+
+def get_roles():
+	query = "SELECT id, role FROM roles";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	roles = [];
+	for row in rows:
+		roles.append(row["role"]);
+	return roles;
+
+def get_uuid():
+	query = "SELECT UUID() as id";
+	g.cur.execute(query);
+	row = g.cur.fetchone();
+	return row["id"];
+
+def add_resource(uuid):
+	query = "INSERT INTO resources(name) VALUES(%s)";
+	g.cur.execute(query, [uuid]);
+	g.db.commit();
+
+def add_read_permissions(roles, permission, uuid):
+	for role in roles:
+		query = """
+			INSERT INTO permissions(resource_id, role_id, access_right_id) 
+			VALUES(
+				(SELECT id FROM resources WHERE name = %s),
+				(SELECT id FROM roles WHERE role = %s),
+				(SELECT id FROM rights WHERE access_right = "read")
+			);"""
+		g.cur.execute(query, [uuid, role]);
+	g.db.commit();
+
 @app.route("/")
 def default():
 	return make_response(redirect("/login/"));
@@ -186,7 +230,7 @@ def delete_area():
 	if not is_valid_session(request.cookies["token"]):
 		return make_response(redirect(url_for("login")));
 	"""
-	If user is admin, then he/she can delete and modify all records already
+	If user is admin, then he/she can delete, create and modify all records already
 	"""
 	if not is_admin(request.cookies["token"]):
 		return make_response(redirect(url_for("login")));
@@ -200,5 +244,85 @@ def delete_area():
 	g.db.commit();
 	return make_response(redirect(url_for("areas")));
 
+@app.route("/add_area/", methods=["GET", "POST"])
+def add_area():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies["token"]):
+		return make_response(redirect(url_for("login")));
+	"""
+	If user is admin, then he/she can delete, create and modify all records already
+	"""
+	if not is_admin(request.cookies["token"]):
+		return make_response(redirect(url_for("login")));
+	role_id = Token.get_role_id(Token.decode(request.cookies["token"]));
+	if request.method == "GET":
+		query = """SELECT a.id, a.region_id, a.area_id, a.name_ru FROM areas a 
+				INNER JOIN permissions p 
+				ON p.resource_id = a.resource_id
+				WHERE a.area_id = 0 AND p.role_id = %s
+				AND p.access_right_id = (SELECT r.id FROM rights r WHERE r.access_right = "read")
+				""";
+		g.cur.execute(query, [role_id]);
+		rows = g.cur.fetchall();
+		regions = [];
+		for row in rows:
+			regions.append({
+				"id": row["id"], 
+				"name": row["name_ru"], 
+				"region_id": row["region_id"]
+			});
+		return render_template("add_area.html", 
+			regions = regions, 
+			permissions = get_default_permissions(), 
+			error = None);
+	elif request.method == "POST":
+		region_id = request.form.get("region_id", None);
+		area_name = request.form.get("area", None);
+		if not region_id:
+			query = """SELECT a.id, a.region_id, a.area_id, a.name_ru FROM areas a 
+				INNER JOIN permissions p 
+				ON p.resource_id = a.resource_id
+				WHERE a.area_id = 0 AND p.role_id = %s
+				AND p.access_right_id = (SELECT r.id FROM rights r WHERE r.access_right = "read")
+				""";
+			g.cur.execute(query, [role_id]);
+			rows = g.cur.fetchall();
+			regions = [];
+			for row in rows:
+				regions.append({
+					"id": row["id"], 
+					"name": row["name_ru"], 
+					"region_id": row["region_id"]
+				});
+			return render_template("add_area.html", 
+				regions = regions, 
+				permissions = get_default_permissions(), 
+				error = u"Неверный код области");
+
+		#Make regular expression here
+		if not area_name or area_name == "":
+			query = """SELECT a.id, a.region_id, a.area_id, a.name_ru FROM areas a 
+				INNER JOIN permissions p 
+				ON p.resource_id = a.resource_id
+				WHERE a.area_id = 0 AND p.role_id = %s
+				AND p.access_right_id = (SELECT r.id FROM rights r WHERE r.access_right = "read")
+				""";
+			g.cur.execute(query, [role_id]);
+			rows = g.cur.fetchall();
+			regions = [];
+			for row in rows:
+				regions.append({
+					"id": row["id"], 
+					"name": row["name_ru"], 
+					"region_id": row["region_id"]
+				});
+			return render_template("add_area.html", 
+				regions = regions, 
+				permissions = get_default_permissions(), 
+				error = u"Неверное наименование для района");
+		roles = get_roles();
+
+		return make_response(redirect(url_for("areas")));
 if __name__ == "__main__":
 	app.run();

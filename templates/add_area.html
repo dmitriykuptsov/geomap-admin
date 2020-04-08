@@ -1,0 +1,27 @@
+<html>
+	<head>
+		<title>Административная страница</title>
+	</head>
+	<body>
+		<form action="/add_area/" method="post">
+			<select name="region_id">
+				{% for region in regions %}
+				<option value="{{ region.region_id }}">{{ region.name }}</option>
+				{% endfor %} 
+			</select><br/>
+			<input type="text" name="area" placeholder="Введите наименование района"><br/>
+			<span>Разрешение на чтение</span><br/>
+			{% for permission in permissions %}
+				{% if permission["checked"] %}
+					<input type="checkbox" checked name="{{permission["role"]}}">{{permission["role"]}}<br/>
+				{% else %}
+					<input type="checkbox" name="{{permission["role"]}}">{{permission["role"]}}<br/>
+				{% endif %}
+			{% endfor %}
+			<input type="submit" value="Добавить"><br/>
+			{% if error %}
+				<span>{{ error }}</span><br/>
+			{% endif %}
+		</form>
+	</body>
+</html>
