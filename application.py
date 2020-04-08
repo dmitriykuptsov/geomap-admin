@@ -86,6 +86,12 @@ def is_admin(cookie):
 def default():
 	return make_response(redirect("/login/"));
 
+@app.route("/logout/")
+def logout():
+	response = make_response(redirect(url_for("login")));
+	response.set_cookie("token", "", expires = 0);
+	return response;
+
 @app.route("/login/", methods=["GET", "POST"])
 def login():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
@@ -172,6 +178,27 @@ def areas():
 		return render_template("areas.html", regions = regions, areas = areas);
 	else:
 		return redirect(url_for('login'));
+
+@app.route("/delete_area/", methods=["GET"])
+def delete_area():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies["token"]):
+		return make_response(redirect(url_for("login")));
+	"""
+	If user is admin, then he/she can delete and modify all records already
+	"""
+	if not is_admin(request.cookies["token"]):
+		return make_response(redirect(url_for("login")));
+	role_id = Token.get_role_id(Token.decode(request.cookies["token"]));
+	region_id = request.args.get("region_id", None);
+	area_id = request.args.get("area_id", None);
+	if not region_id or not area_id:
+		return make_response(redirect(url_for("areas")));
+	query = "DELETE FROM areas WHERE region_id = %s AND area_id = %s";
+	g.cur.execute(query, [int(region_id), int(area_id)]);
+	g.db.commit();
+	return make_response(redirect(url_for("areas")));
 
 if __name__ == "__main__":
 	app.run();
