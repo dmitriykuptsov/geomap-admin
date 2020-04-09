@@ -1,29 +1,53 @@
 <html>
 	<head>
 		<title>Административная страница</title>
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+		<script src="{{ url_for('static', filename='css/bootstrap.min.js') }}"></script>
+		<style>
+			.header {
+				position: relative;
+				top: 0;
+				left: 0;
+				height: 200px;
+				width: calc(100%);
+			}
+		</style>
 	</head>
 	<body>
-		<form action="/areas/" method="get" onchange="this.submit()">
-			<select name="region_id">
-				{% for region in regions %}
-				<option value="{{ region.region_id }}">{{ region.name }}</option>
-				{% endfor %} 
-			</select>
-		</form>
-		<a href="/add_area/">Добавить</a>
-		<table>
-			<th>
-				<td>Район</td>
-				<td>Действие</td>
-			</th>
-			{% for area in areas %}
-			<tr>
-				<td>{{ area.name }}</td>
-				<td>
-					<a href="/delete_area?area_id={{ area.area_id }}&region_id={{ area.region_id }}">Удалить</a>
-					<a href="/edit_area?area_id={{ area.area_id }}&region_id={{ area.region_id }}">Редактировать</a>
-				</td>
-			</tr>
-			{% endfor %}
+		<div class="header">
+		</div>
+		<div class="container">
+			<div class="row">
+				<div class="col-sm">
+					<form action="/areas/" method="get" onchange="this.submit()">
+						<select name="region_id" class="form-control">
+							{% for region in regions %}
+							<option value="{{ region.region_id }}">{{ region.name }}</option>
+							{% endfor %} 
+						</select>
+					</form>
+					<a href="/add_area/">Добавить</a>
+					<table class="table">
+						<thead class="thead-dark">
+							<tr>
+								<th>Район</th>
+								<th>Действие</th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for area in areas %}
+							<tr>
+								<td>{{ area.name }}</td>
+								<td>
+									<a href="/delete_area?area_id={{ area.area_id }}&region_id={{ area.region_id }}">Удалить</a>
+									<a href="/edit_area?area_id={{ area.area_id }}&region_id={{ area.region_id }}">Редактировать</a>
+								</td>
+							</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
 	</body>
 </html>

@@ -1,27 +1,67 @@
 <html>
 	<head>
 		<title>Административная страница</title>
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+		<script src="{{ url_for('static', filename='css/bootstrap.min.js') }}"></script>
+		<style>
+			.header {
+				position: relative;
+				top: 0;
+				left: 0;
+				height: 200px;
+				width: calc(100%);
+			}
+		</style>
 	</head>
 	<body>
-		<form action="/add_area/" method="post">
-			<select name="region_id">
-				{% for region in regions %}
-				<option value="{{ region.region_id }}">{{ region.name }}</option>
-				{% endfor %} 
-			</select><br/>
-			<input type="text" name="area" placeholder="Введите наименование района"><br/>
-			<span>Разрешение на чтение</span><br/>
-			{% for permission in permissions %}
-				{% if permission["granted"] %}
-					<input type="checkbox" checked name="{{permission["role"]}}">{{permission["role"]}}<br/>
-				{% else %}
-					<input type="checkbox" name="{{permission["role"]}}">{{permission["role"]}}<br/>
-				{% endif %}
-			{% endfor %}
-			<input type="submit" value="Добавить"><br/>
-			{% if error %}
-				<span>{{ error }}</span><br/>
-			{% endif %}
-		</form>
+		<div class="header">
+		</div>
+		<div class="container">
+			<div class="row">
+				<div class="col-sm">
+				</div>
+				<div class="col-sm">
+					<form action="/add_area/" method="post">
+						<div class="form-group">
+							<select name="region_id" class="form-control">
+								{% for region in regions %}
+								<option value="{{ region.region_id }}">{{ region.name }}</option>
+								{% endfor %} 
+							</select>
+						</div>
+						<div class="form-group">
+							<input type="text" name="area" class="form-control" placeholder="Введите наименование района">
+						</div>
+						<div class="form-group">
+							<span>Разрешение на чтение</span>
+						</div>
+						{% for permission in permissions %}
+							{% if permission["granted"] %}
+								<div class="form-group">
+									<input type="checkbox" checked name="{{permission["role"]}}">
+								{{permission["role"]}}
+								</div>
+							{% else %}
+								<div class="form-group">
+									<input type="checkbox" name="{{permission["role"]}}">{{permission["role"]}}
+								</div>
+							{% endif %}
+						{% endfor %}
+						<div class="form-group">
+							<button type="submit" class="btn btn-primary form-control">Добавить</button>
+						</div>
+						{% if error %}
+							<div class="form-group">
+								<div class="alert alert-danger" role="alert">
+									<span>{{ error }}</span>
+								</div>
+							</div>
+						{% endif %}
+					</form>
+				</div>
+				<div class="col-sm">
+				</div>
+			</div>
+		</div>
 	</body>
 </html>

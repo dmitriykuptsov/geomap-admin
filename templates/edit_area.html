@@ -1,24 +1,62 @@
 <html>
 	<head>
 		<title>Административная страница</title>
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+		<script src="{{ url_for('static', filename='css/bootstrap.min.js') }}"></script>
+		<style>
+			.header {
+				position: relative;
+				top: 0;
+				left: 0;
+				height: 200px;
+				width: calc(100%);
+			}
+		</style>
 	</head>
 	<body>
-		<form action="/edit_area/" method="post">
-			<input type="hidden" name="region_id" value="{{region_id}}">
-			<input type="hidden" name="area_id" value="{{area_id}}">
-			<input type="text" name="area" value="{{area}}"><br/>
-			<span>Разрешение на чтение</span><br/>
-			{% for permission in permissions %}
-				{% if permission["granted"] %}
-					<input type="checkbox" checked name="{{permission["role"]}}">{{permission["role"]}}<br/>
-				{% else %}
-					<input type="checkbox" name="{{permission["role"]}}">{{permission["role"]}}<br/>
-				{% endif %}
-			{% endfor %}
-			<input type="submit" value="Обновить"><br/>
-			{% if error %}
-				<span>{{ error }}</span><br/>
-			{% endif %}
-		</form>
+		<div class="header">
+		</div>
+		<div class="container">
+			<div class="row">
+				<div class="col-sm">
+				</div>
+				<div class="col-sm">
+					<form action="/edit_area/" method="post">
+						<input type="hidden" name="region_id" value="{{region_id}}">
+						<input type="hidden" name="area_id" value="{{area_id}}">
+						<div class="form-group">
+							<input type="text" class="form-control" name="area" value="{{area}}">
+						</div>
+						<div class="form-group">
+							<span>Разрешение на чтение</span>
+						</div>
+						{% for permission in permissions %}
+							{% if permission["granted"] %}
+								<div class="form-group">
+									<input type="checkbox" checked name="{{permission["role"]}}">
+								{{permission["role"]}}
+								</div>
+							{% else %}
+								<div class="form-group">
+									<input type="checkbox" name="{{permission["role"]}}">{{permission["role"]}}
+								</div>
+							{% endif %}
+						{% endfor %}
+						<div class="form-group">
+							<button type="submit" class="btn btn-primary form-control">Обновить</button>
+						</div>
+						{% if error %}
+							<div class="form-group">
+								<div class="alert alert-danger" role="alert">
+									<span>{{ error }}</span>
+								</div>
+							</div>
+						{% endif %}
+					</form>
+				</div>
+				<div class="col-sm">
+				</div>
+			</div>
+		</div>
 	</body>
 </html>

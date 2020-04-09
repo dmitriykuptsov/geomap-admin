@@ -1,15 +1,48 @@
 <html>
 	<head>
 		<title>Вход в систему</title>
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+		<script src="{{ url_for('static', filename='css/bootstrap.min.js') }}"></script>
+		<style>
+			.header {
+				position: relative;
+				top: 0;
+				left: 0;
+				height: 200px;
+				width: calc(100%);
+			}
+		</style>
 	</head>
 	<body>
-		<form action="/login/" method="post">
-			<input type="text" name="username">
-			<input type="password" name="password">
-			<input type="submit" value="Войти">
-			{% if error %}
-				<span>{{ error }}</span>
-			{% endif %}
-		</form>
+		<div class="header">
+		</div>
+		<div class="container">
+			<div class="row">
+				<div class="col-sm">
+				</div>
+				<div class="col-sm">
+					<form action="/login/" method="post">
+						<div class="form-group">
+    						<input type="text" class="form-control" name="username" placeholder="Имя пользователя">	
+  						</div>
+						<div class="form-group">
+							<input type="password" class="form-control" name="password" placeholder="Пароль">
+						</div>
+						<div class="form-group">
+							<button type="submit" class="btn btn-primary form-control">Войти</button>
+						</div>
+						<div class="form-group">							
+							{% if error %}
+								<div class="alert alert-danger" role="alert">
+									<span>{{ error }}</span>
+								</div>
+							{% endif %}
+						</div>
+					</form>
+				</div>
+				<div class="col-sm">
+				</div>
+			</div>
+		</div>
 	</body>
 </html>
