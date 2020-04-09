@@ -581,10 +581,11 @@ def add_amount_unit():
 			return render_template("add_amount_unit.html", 
 				permissions = get_default_permissions(), 
 				error = u"Неверное наименование для единицы измерения");		
-		if check_for_collision_in_names(amount_unit):
+		"""if check_for_collision_in_names(amount_unit):
 			return render_template("add_amount_unit.html", 
 				permissions = get_default_permissions(), 
 				error = u"Данная единица измерения уже существует в базе");
+		"""
 		roles = get_roles();
 		permitted_roles = get_roles_from_form(request.form, roles);
 		uuid = get_uuid();
@@ -632,12 +633,14 @@ def edit_amount_unit():
 				amount_unit = get_amount_unit(amount_unit_id),
 				permissions = get_permissions(resource_id),
 				error = u"Неверное наименование для единицы измерения");
+		"""
 		if check_for_collision_in_names(amount_unit):
 			return render_template("edit_amount_unit.html", 
 				amount_unit_id = amount_unit_id,
 				amount_unit = get_amount_unit(amount_unit_id),
 				permissions = get_permissions(resource_id),
 				error = u"Данная единица измерения уже существует в базе");
+		"""
 		roles = get_roles();
 		permitted_roles = get_roles_from_form(request.form, roles);
 		update_read_permissions(permitted_roles, resource_id);

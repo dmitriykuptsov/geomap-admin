@@ -3,3 +3,4 @@ class LoginStatus():
 		self.success = success;
 		self.role_id = role_id;
 		self.user_id = user_id;
+
