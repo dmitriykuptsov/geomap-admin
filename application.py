@@ -55,9 +55,9 @@ atexit.register(exit_handler);
 """
 Grants access only to local network users.
 """
-def ip_based_access_control(ip, subnet):
+def ip_based_access_control(ip, subnet, default_gw = "192.168.0.1"):
 	# This will not work if server is behind the NAT
-	return (Utils.is_ip_in_the_same_subnet(ip, subnet) or ip == "127.0.0.1");
+	return ((Utils.is_ip_in_the_same_subnet(ip, subnet) or ip == "127.0.0.1") and ip != default_gw);
 
 """
 Verifies username and password. If login is valid 
@@ -155,6 +155,39 @@ def get_area(region_id, area_id):
 	if not row:
 		return None;
 	return row["name_ru"];
+
+"""
+Gets amount unit name by ID
+"""
+def get_amount_unit(amount_unit_id):
+	query = "SELECT name_ru FROM amount_units WHERE id = %s";
+	g.cur.execute(query, [amount_unit_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["name_ru"];
+"""
+Checks for collision in amount unit names
+"""
+def check_for_collision_in_names(amount_unit):
+	query = "SELECT name_ru FROM amount_units WHERE name_ru = %s";
+	g.cur.execute(query, [amount_unit]);
+	rows = g.cur.fetchall();
+	return len(rows) > 0;
+
+"""
+Gets resource id for the given amount unit
+"""
+def get_resource_id_for_amount_unit(amount_unit_id):
+	query = """
+		SELECT resource_id FROM amount_units
+			WHERE id = %s;
+	""";
+	g.cur.execute(query, [amount_unit_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];
 
 def get_resource_id_for_area(region_id, area_id):
 	query = """
@@ -385,9 +418,6 @@ def delete_area():
 		""";
 	g.cur.execute(query, [int(region_id), int(area_id)]);
 	g.db.commit();
-	#query = "DELETE FROM areas WHERE region_id = %s AND area_id = %s";
-	#g.cur.execute(query, [int(region_id), int(area_id)]);
-	#g.db.commit();
 	return make_response(redirect(url_for("areas")));
 
 @app.route("/add_area/", methods=["GET", "POST"])
@@ -396,12 +426,8 @@ def add_area():
 		return make_response(redirect(url_for("login")));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
-	"""
-	If user is admin, then he/she can delete, create and modify all records already
-	"""
 	if not is_admin(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
-	#role_id = Token.get_role_id(Token.decode(request.cookies.get("token", None)));
 	if request.method == "GET":
 		return render_template("add_area.html", 
 			regions = get_regions(), 
@@ -535,6 +561,93 @@ def delete_amount_units():
 		return make_response(redirect(url_for("amount_units")));
 	else:
 		return redirect(url_for('login'));
+
+@app.route("/add_amount_unit/", methods=["GET", "POST"])
+def add_amount_unit():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return render_template("add_amount_unit.html", 
+			permissions = get_default_permissions(), 
+			error = None);
+	elif request.method == "POST":
+		amount_unit = request.form.get("amount_unit", None);
+		#Make regular expression here
+		if not amount_unit or amount_unit == "":
+			return render_template("add_amount_unit.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверное наименование для единицы измерения");		
+		if check_for_collision_in_names(amount_unit):
+			return render_template("add_amount_unit.html", 
+				permissions = get_default_permissions(), 
+				error = u"Данная единица измерения уже существует в базе");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			INSERT INTO amount_units(name_en, name_ru, name_uz, resource_id)
+			VALUES(
+				"", %s, "",
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [amount_unit, uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("amount_units")));
+
+@app.route("/edit_amount_unit/", methods=["GET", "POST"])
+def edit_amount_unit():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		amount_unit_id = request.args.get("amount_unit_id", None);
+		if not get_amount_unit(amount_unit_id):
+			return make_response(redirect(url_for("amount_units")));
+		resource_id = get_resource_id_for_amount_unit(amount_unit_id);
+		return render_template("edit_amount_unit.html", 
+			amount_unit_id = amount_unit_id,
+			amount_unit = get_amount_unit(amount_unit_id),
+			permissions = get_permissions(resource_id), 
+			error = None);
+	elif request.method == "POST":
+		amount_unit_id = request.form.get("amount_unit_id", None);
+		amount_unit = request.form.get("amount_unit", None);
+		if not get_amount_unit(amount_unit_id):
+			return make_response(redirect(url_for("amount_units")));
+		resource_id = get_resource_id_for_amount_unit(amount_unit_id);
+		#Make regular expression here
+		if not amount_unit or amount_unit == "":
+			return render_template("edit_amount_unit.html", 
+				amount_unit_id = amount_unit_id,
+				amount_unit = get_amount_unit(amount_unit_id),
+				permissions = get_permissions(resource_id),
+				error = u"Неверное наименование для единицы измерения");
+		if check_for_collision_in_names(amount_unit):
+			return render_template("edit_amount_unit.html", 
+				amount_unit_id = amount_unit_id,
+				amount_unit = get_amount_unit(amount_unit_id),
+				permissions = get_permissions(resource_id),
+				error = u"Данная единица измерения уже существует в базе");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		update_read_permissions(permitted_roles, resource_id);
+		query = """
+			UPDATE amount_units SET name_ru = %s
+				WHERE id = %s
+		""";
+		g.cur.execute(query, [amount_unit, amount_unit_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("amount_units")));
 
 if __name__ == "__main__":
 	app.run();
