@@ -422,12 +422,10 @@ def add_area():
 				error = u"Неверный код области");
 		#Make regular expression here
 		if not area_name or area_name == "":
-			regions = get_regions();
 			return render_template("add_area.html", 
-				regions = regions, 
+				regions = get_regions(), 
 				permissions = get_default_permissions(), 
-				error = u"Неверное наименование для района");
-		
+				error = u"Неверное наименование для района");		
 		roles = get_roles();
 		permitted_roles = get_roles_from_form(request.form, roles);
 		uuid = get_uuid();

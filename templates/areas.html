@@ -8,16 +8,88 @@
 				position: relative;
 				top: 0;
 				left: 0;
-				height: 200px;
+				height: 50px;
 				width: calc(100%);
+				background-color: #6f6f6f;
+				margin-bottom: 20px;
+			}
+
+			.logout {
+				position: absolute;
+				top: 20px;
+				right: 20px;
+			}
+			.active {
+				background: #9f9f9f;
+			}
+			.title {
+				position: absolute;
+				left: 20px;
+				top: 20px;
+				font-weight: bold;
+				color: #007bff;
+				font-size: 12pt;
 			}
 		</style>
 	</head>
 	<body>
 		<div class="header">
+			<div class="title">Система администрирования геологической карты</div>
+			<a href="/logout/" class="logout">Выйти</a>
 		</div>
 		<div class="container">
 			<div class="row">
+				<div class="col-sm">
+					<table class="table">
+						<tbody>
+							<tr class="active">
+								<td><a href="/areas/">Районы</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Единицы измерения</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Вид</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Группа</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Тип</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Полезные ископаемые</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Статус</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Организации</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Участки</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Лицензии</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Месторождения</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Месторождения-Участки</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Месторождения-Участки-Лицензии</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Контур участка</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Контур залицензированного участка</a></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
 				<div class="col-sm">
 					<form action="/areas/" method="get" onchange="this.submit()">
 						<select name="region_id" class="form-control">
@@ -26,7 +98,7 @@
 							{% endfor %} 
 						</select>
 					</form>
-					<a href="/add_area/">Добавить</a>
+					<a href="/add_area/">Добавить</a><br/>
 					<table class="table">
 						<thead class="thead-dark">
 							<tr>
