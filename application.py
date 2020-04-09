@@ -93,7 +93,7 @@ def is_admin(cookie):
 	query = "SELECT id FROM roles WHERE role = 'admin'";
 	g.cur.execute(query);
 	row = g.cur.fetchone();
-	return row["id"] == Token.get_role_id(Token.decode(request.cookies["token"]));
+	return row["id"] == Token.get_role_id(Token.decode(cookie));
 
 """ 
 Get submitted roles from form
@@ -490,6 +490,51 @@ def edit_area():
 		g.cur.execute(query, [area_name, region_id, area_id]);
 		g.db.commit();
 		return make_response(redirect(url_for("areas")));
+
+@app.route("/amount_units/", methods=["GET", "POST"])
+def amount_units():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		query = "SELECT id, name_ru FROM amount_units";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		amount_units = [];
+		for row in rows:
+			amount_units.append({
+				"id": row["id"], 
+				"name": row["name_ru"]
+				});
+		return render_template("amount_units.html", amount_units = amount_units);
+	else:
+		return redirect(url_for('login'));
+
+@app.route("/delete_amount_unit/", methods=["GET", "POST"])
+def delete_amount_units():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		amount_unit_id = request.args.get("amount_unit_id", None);
+		if not amount_unit_id:
+			return make_response(redirect(url_for("amount_units")));
+		query = """
+			DELETE FROM resources 
+				WHERE id = 
+					(SELECT resource_id FROM amount_units WHERE id = %s)
+		""";
+		g.cur.execute(query, [int(amount_unit_id)]);
+		rows = g.db.commit();
+		return make_response(redirect(url_for("amount_units")));
+	else:
+		return redirect(url_for('login'));
 
 if __name__ == "__main__":
 	app.run();
