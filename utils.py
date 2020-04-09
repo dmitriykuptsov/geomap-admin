@@ -2,6 +2,7 @@ from flask import jsonify
 from tokens import Token
 import binascii
 import os
+import re
 
 class Utils():
 	DEFAULT_ENTROPY = 128
@@ -35,3 +36,8 @@ class Utils():
 		ip = Utils.ip_to_int(ip);
 		subnet = Utils.ip_to_int(subnet);
 		return ((ip & subnet) == subnet);
+
+	@staticmethod
+	def is_valid_password(password):
+		return (re.match("^(?=.*[A-Z]+)(?=.*[a-z]+)(?=.*[0-9]+)(?=.*[$#%]+)", password) and
+		not re.match("^[a-zA-Z0-9#$%&@]{10,100}$", password))
