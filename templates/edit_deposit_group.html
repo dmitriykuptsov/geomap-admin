@@ -2,7 +2,7 @@
 <html lang="ru-RU">
 	<head>
 		<title>Административная страница</title>
-		<meta charset="utf-8" /> 
+		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 		<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
@@ -51,10 +51,10 @@
 							<tr>
 								<td><a href="/amount_units/">Единицы измерения</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposit_kinds/">Виды</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/deposit_groups/">Группы</a></td>
 							</tr>
 							<tr>
@@ -62,7 +62,7 @@
 							</tr>
 							<tr>
 								<td><a href="#">Подтипы</a></td>
-							</tr>
+							</tr>							
 							<tr>
 								<td><a href="#">Полезные ископаемые</a></td>
 							</tr>
@@ -97,11 +97,22 @@
 					</table>
 				</div>
 				<div class="col-sm">
-					<form action="/add_deposit_kind/" method="post">
+					<form action="/edit_deposit_group/" method="post">
 						<div class="form-group">
-							<input type="text" name="deposit_kind" 
+							<input type="hidden" 
+								name="deposit_kind_id" 
+								value="{{deposit_kind_id}}">
+						</div>
+						<div class="form-group">
+							<input type="hidden" 
+								name="deposit_group_id" 
+								value="{{deposit_group_id}}">
+						</div>
+						<div class="form-group">
+							<input type="text" name="deposit_group" 
 								class="form-control" 
-								placeholder="Введите вид направления использования">
+								placeholder="Введите группу использования"
+								value="{{deposit_group}}">
 						</div>
 						<div class="form-group">
 							<span>Разрешение на чтение</span>

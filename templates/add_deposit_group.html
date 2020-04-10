@@ -51,10 +51,10 @@
 							<tr>
 								<td><a href="/amount_units/">Единицы измерения</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposit_kinds/">Виды</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/deposit_groups/">Группы</a></td>
 							</tr>
 							<tr>
@@ -97,11 +97,18 @@
 					</table>
 				</div>
 				<div class="col-sm">
-					<form action="/add_deposit_kind/" method="post">
+					<form action="/add_deposit_group/" method="post">
 						<div class="form-group">
-							<input type="text" name="deposit_kind" 
+							<select name="deposit_kind_id" class="form-control">
+								{% for deposit_kind in deposit_kinds %}
+									<option value="{{ deposit_kind.kind_id }}">{{ deposit_kind.name }}</option>
+								{% endfor %} 
+							</select>
+						</div>
+						<div class="form-group">
+							<input type="text" name="deposit_group" 
 								class="form-control" 
-								placeholder="Введите вид направления использования">
+								placeholder="Введите группу направления использования">
 						</div>
 						<div class="form-group">
 							<span>Разрешение на чтение</span>
