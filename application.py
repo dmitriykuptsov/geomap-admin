@@ -56,7 +56,7 @@ atexit.register(exit_handler);
 Grants access only to local network users.
 """
 def ip_based_access_control(ip, subnet, default_gw = "192.168.0.1"):
-	# This will not work if server is behind the NAT
+	# This will not work if server is in DMZ
 	return ((Utils.is_ip_in_the_same_subnet(ip, subnet) or ip == "127.0.0.1") and ip != default_gw);
 
 """
@@ -78,7 +78,7 @@ def valid_login(username, password):
 		return LoginStatus(False, None, None);
 	role_id = row["role_id"];
 	user_id = row["user_id"];
-	return LoginStatus(True, role_id, user_id)
+	return LoginStatus(True, role_id, user_id);
 	
 """
 Checks whether the session is valid
@@ -93,6 +93,8 @@ def is_admin(cookie):
 	query = "SELECT id FROM roles WHERE role = 'admin'";
 	g.cur.execute(query);
 	row = g.cur.fetchone();
+	if not row:
+		return False;
 	return row["id"] == Token.get_role_id(Token.decode(cookie));
 
 """ 
@@ -166,6 +168,24 @@ def get_amount_unit(amount_unit_id):
 	if not row:
 		return None;
 	return row["name_ru"];
+
+"""
+Gets resource kind name by ID
+"""
+def get_deposit_kind(deposit_kind_id):
+	query = """
+		SELECT name_ru FROM deposit_types
+			WHERE kind_id = %s 
+				AND group_id = 0
+				AND type_id = 0
+				AND subtype_id = 0
+	""";
+	g.cur.execute(query, [deposit_kind_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["name_ru"];
+
 """
 Checks for collision in amount unit names
 """
@@ -181,7 +201,7 @@ Gets resource id for the given amount unit
 def get_resource_id_for_amount_unit(amount_unit_id):
 	query = """
 		SELECT resource_id FROM amount_units
-			WHERE id = %s;
+			WHERE id = %s
 	""";
 	g.cur.execute(query, [amount_unit_id]);
 	row = g.cur.fetchone();
@@ -195,6 +215,23 @@ def get_resource_id_for_area(region_id, area_id):
 			WHERE region_id = %s AND area_id = %s;
 	""";
 	g.cur.execute(query, [region_id, area_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];
+
+"""
+Returns resource ID for given resource kind
+"""
+def get_resource_id_for_deposit_kind(deposit_kind_id):
+	query = """
+		SELECT resource_id FROM deposit_types
+			WHERE kind_id = %s 
+				AND group_id = 0
+				AND type_id = 0
+				AND subtype_id = 0
+	""";
+	g.cur.execute(query, [deposit_kind_id]);
 	row = g.cur.fetchone();
 	if not row:
 		return None;
@@ -304,7 +341,7 @@ def update_read_permissions(roles, resource_id):
 			WHERE resource_id = %s
 		"""
 	g.cur.execute(query, [resource_id]);
-	g.db.commit();
+	#g.db.commit();
 	for role in roles:
 		query = """
 			INSERT INTO permissions(resource_id, role_id, access_right_id) 
@@ -651,6 +688,140 @@ def edit_amount_unit():
 		g.cur.execute(query, [amount_unit, amount_unit_id]);
 		g.db.commit();
 		return make_response(redirect(url_for("amount_units")));
+
+@app.route("/deposit_kinds/", methods=["GET", "POST"])
+def deposit_kinds():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		query = """SELECT kind_id, name_ru 
+			FROM deposit_types WHERE kind_id <> 0
+			AND group_id = 0 
+			AND type_id = 0
+			AND subtype_id = 0
+			""";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		deposit_kinds = [];
+		for row in rows:
+			deposit_kinds.append({
+				"kind_id": row["kind_id"], 
+				"name": row["name_ru"]
+				});
+		return render_template("deposit_kinds.html", deposit_kinds = deposit_kinds);
+	else:
+		return redirect(url_for('login'));
+
+@app.route("/delete_deposit_kind/", methods=["GET", "POST"])
+def delete_deposit_kind():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposit_kind_id = request.args.get("kind_id", None);
+		if not deposit_kind_id:
+			return make_response(redirect(url_for("deposit_kinds")));
+		query = """
+			DELETE FROM resources 
+				WHERE id IN 
+					(SELECT resource_id FROM deposit_types WHERE kind_id = %s)
+		""";
+		g.cur.execute(query, [int(deposit_kind_id)]);
+		rows = g.db.commit();
+		return make_response(redirect(url_for("deposit_kinds")));
+	else:
+		return redirect(url_for('login'));
+
+@app.route("/edit_deposit_kind/", methods=["GET", "POST"])
+def edit_deposit_kind():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposit_kind_id = request.args.get("kind_id", None);
+		if not get_deposit_kind(deposit_kind_id):
+			return make_response(redirect(url_for("deposit_kinds")));
+		resource_id = get_resource_id_for_deposit_kind(deposit_kind_id);
+		if not resource_id:
+			return make_response(redirect(url_for("deposit_kinds")));
+		return render_template("edit_deposit_kind.html", 
+			deposit_kind_id = deposit_kind_id,
+			deposit_kind = get_deposit_kind(deposit_kind_id),
+			permissions = get_permissions(resource_id), 
+			error = None);
+	else:
+		deposit_kind_id = request.form.get("deposit_kind_id", None);
+		deposit_kind = request.form.get("deposit_kind", None);
+		if not get_deposit_kind(deposit_kind_id):
+			return make_response(redirect(url_for("deposit_kinds")));
+		resource_id = get_resource_id_for_deposit_kind(deposit_kind_id);
+		#Make regular expression here
+		if not deposit_kind or deposit_kind == "":
+			return render_template("edit_deposit_kind.html", 
+				deposit_kind_id = deposit_kind_id,
+				deposit_kind = get_deposit_kind(deposit_kind_id),
+				permissions = get_permissions(resource_id),
+				error = u"Неверное название вида");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		update_read_permissions(permitted_roles, resource_id);
+		query = """
+			UPDATE deposit_types SET name_ru = %s
+				WHERE kind_id = %s
+					AND group_id = 0
+					AND type_id = 0
+					AND subtype_id = 0
+		""";
+		g.cur.execute(query, [deposit_kind, deposit_kind_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposit_kinds")));
+
+@app.route("/add_deposit_kind/", methods=["GET", "POST"])
+def add_deposit_kind():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return render_template("add_deposit_kind.html", 
+			permissions = get_default_permissions(), 
+			error = None);
+	else:
+		deposit_kind = request.form.get("deposit_kind", None);
+		#Make regular expression here
+		if not deposit_kind or deposit_kind == "":
+			return render_template("add_deposit_kind.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверное наименование для вида направления использования");		
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			INSERT INTO deposit_types(name_en, name_ru, name_uz, kind_id, group_id, type_id, subtype_id, resource_id)
+			VALUES(
+				"", %s, "", 
+				(SELECT MAX(dt.kind_id) + 1 FROM deposit_types dt WHERE dt.kind_id <> 0 AND dt.group_id = 0 AND dt.type_id = 0 AND dt.subtype_id = 0), 
+				0, 0, 0,
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [deposit_kind, uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposit_kinds")));
 
 if __name__ == "__main__":
 	app.run();

@@ -2,7 +2,7 @@
 <html lang="ru-RU">
 	<head>
 		<title>Административная страница</title>
-		<meta charset="utf-8" />
+		<meta charset="utf-8" /> 
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 		<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
@@ -45,13 +45,13 @@
 				<div class="col-sm">
 					<table class="table">
 						<tbody>
-							<tr class="active">
+							<tr>
 								<td><a href="/areas/">Районы</a></td>
 							</tr>
 							<tr>
 								<td><a href="/amount_units/">Единицы измерения</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/deposit_kinds/">Виды</a></td>
 							</tr>
 							<tr>
@@ -97,33 +97,41 @@
 					</table>
 				</div>
 				<div class="col-sm">
-					<a href="/add_area/">Добавить</a><br/>
-					<form action="/areas/" method="get" onchange="this.submit()">
-						<select name="region_id" class="form-control">
-							{% for region in regions %}
-							<option value="{{ region.region_id }}">{{ region.name }}</option>
-							{% endfor %} 
-						</select>
+					<form action="/add_deposit_kind/" method="post">
+						<div class="form-group">
+							<input type="text" name="deposit_kind" 
+								class="form-control" 
+								placeholder="Введите вид направления использования">
+						</div>
+						<div class="form-group">
+							<span>Разрешение на чтение</span>
+						</div>
+						{% for permission in permissions %}
+							{% if permission["granted"] %}
+								<div class="form-group">
+									<input type="checkbox" 
+										checked 
+										name="{{permission["role"]}}">
+								{{permission["role"]}}
+								</div>
+							{% else %}
+								<div class="form-group">
+									<input type="checkbox" 
+									name="{{permission["role"]}}">{{permission["role"]}}
+								</div>
+							{% endif %}
+						{% endfor %}
+						<div class="form-group">
+							<button type="submit" class="btn btn-primary form-control">Сохранить</button>
+						</div>
+						{% if error %}
+							<div class="form-group">
+								<div class="alert alert-danger" role="alert">
+									<span>{{ error }}</span>
+								</div>
+							</div>
+						{% endif %}
 					</form>
-					<table class="table">
-						<thead class="thead-dark">
-							<tr>
-								<th>Район</th>
-								<th>Действие</th>
-							</tr>
-						</thead>
-						<tbody>
-							{% for area in areas %}
-							<tr>
-								<td>{{ area.name }}</td>
-								<td>
-									<a href="/delete_area?area_id={{ area.area_id }}&region_id={{ area.region_id }}">Удалить</a>
-									<a href="/edit_area?area_id={{ area.area_id }}&region_id={{ area.region_id }}">Редактировать</a>
-								</td>
-							</tr>
-							{% endfor %}
-						</tbody>
-					</table>
 				</div>
 			</div>
 		</div>
