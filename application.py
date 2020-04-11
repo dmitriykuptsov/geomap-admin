@@ -1428,17 +1428,33 @@ def add_deposit_type():
 		add_resource(uuid);
 		add_read_permissions(permitted_roles, uuid);
 		query = """
-			INSERT INTO deposit_types(kind_id, group_id, type_id, subtype_id, name_en, name_ru, name_uz, resource_id)
+			INSERT INTO deposit_types(
+				kind_id, 
+				group_id, 
+				type_id, 
+				subtype_id, 
+				name_en, 
+				name_ru, 
+				name_uz, 
+				resource_id)
 			VALUES(
 				%s, 
 				%s,
-				(SELECT MAX(dt.type_id) + 1 FROM deposit_types dt WHERE dt.kind_id = %s AND dt.group_id = %s AND dt.subtype_id = 0),
+				(SELECT MAX(dt.type_id) + 1 
+					FROM deposit_types dt 
+						WHERE dt.kind_id = %s 
+							AND dt.group_id = %s 
+							AND dt.subtype_id = 0),
 				0,
 				"", %s, "",
 				(SELECT id FROM resources WHERE name = %s)
 			)
 		""";
-		g.cur.execute(query, [int(deposit_kind_id), int(deposit_group_id), int(deposit_kind_id), int(deposit_group_id), deposit_type, uuid]);
+		g.cur.execute(query, [int(deposit_kind_id), 
+			int(deposit_group_id), 
+			int(deposit_kind_id), 
+			int(deposit_group_id), 
+			deposit_type, uuid]);
 		g.db.commit();
 		return make_response(redirect(url_for("deposit_types")));
 
