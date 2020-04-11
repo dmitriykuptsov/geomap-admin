@@ -2,7 +2,7 @@
 <html lang="ru-RU">
 	<head>
 		<title>Административная страница</title>
-		<meta charset="utf-8" /> 
+		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 		<script src="{{ url_for('static', filename='js/jquery-3.5.0.min.js') }}"></script>
@@ -55,15 +55,15 @@
 							<tr>
 								<td><a href="/deposit_kinds/">Виды</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposit_groups/">Группы</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/deposit_types/">Типы</a></td>
 							</tr>
 							<tr>
 								<td><a href="#">Подтипы</a></td>
-							</tr>
+							</tr>							
 							<tr>
 								<td><a href="#">Полезные ископаемые</a></td>
 							</tr>
@@ -98,18 +98,27 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/add_deposit_group/" method="post">
+					<form action="/edit_deposit_type/" method="post">
 						<div class="form-group">
-							<select name="deposit_kind_id" class="form-control">
-								{% for deposit_kind in deposit_kinds %}
-									<option value="{{ deposit_kind.kind_id }}">{{ deposit_kind.name }}</option>
-								{% endfor %} 
-							</select>
+							<input type="hidden" 
+								name="deposit_kind_id" 
+								value="{{deposit_kind_id}}">
 						</div>
 						<div class="form-group">
-							<input type="text" name="deposit_group" 
+							<input type="hidden" 
+								name="deposit_group_id" 
+								value="{{deposit_group_id}}">
+						</div>
+						<div class="form-group">
+							<input type="hidden" 
+								name="deposit_type_id" 
+								value="{{deposit_type_id}}">
+						</div>
+						<div class="form-group">
+							<input type="text" name="deposit_type" 
 								class="form-control" 
-								placeholder="Введите группу направления использования">
+								placeholder="Введите тип направления использования"
+								value="{{deposit_type}}">
 						</div>
 						<div class="form-group">
 							<span>Разрешение на чтение</span>

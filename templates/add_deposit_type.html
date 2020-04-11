@@ -35,6 +35,18 @@
 				font-size: 12pt;
 			}
 		</style>
+		<script type="text/javascript">
+			function get_groups(kind_id) {
+				$.get("{{ url_for('deposit_groups_ajax') }}?deposit_kind_id=" + kind_id, function(data) {
+					var html = "";
+					for (idx in data) {
+						var item = data[idx];
+						html += "<option value='" + item["group_id"] +"'>" + item["name"] + "</option>";
+					}
+					$("#deposit_group_id").html(html);
+				});
+			}
+		</script>
 	</head>
 	<body>
 		<div class="header">
@@ -55,10 +67,10 @@
 							<tr>
 								<td><a href="/deposit_kinds/">Виды</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposit_groups/">Группы</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/deposit_types/">Типы</a></td>
 							</tr>
 							<tr>
@@ -98,18 +110,29 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/add_deposit_group/" method="post">
+					<form action="/add_deposit_type/" method="post">
 						<div class="form-group">
-							<select name="deposit_kind_id" class="form-control">
+							<select name="deposit_kind_id" id="deposit_kind_id" 
+									class="form-control" 
+									onchange="get_groups(this.value)">
 								{% for deposit_kind in deposit_kinds %}
-									<option value="{{ deposit_kind.kind_id }}">{{ deposit_kind.name }}</option>
+								<option value="{{ deposit_kind.kind_id }}">{{ deposit_kind.name }}</option>
 								{% endfor %} 
 							</select>
 						</div>
 						<div class="form-group">
-							<input type="text" name="deposit_group" 
+							<select name="deposit_group_id" 
+									id="deposit_group_id" 
+									class="form-control">
+								{% for deposit_group in deposit_groups %}
+								<option value="{{ deposit_group.group_id }}">{{ deposit_group.name }}</option>
+								{% endfor %} 
+							</select>
+						</div>
+						<div class="form-group">
+							<input type="text" name="deposit_type" 
 								class="form-control" 
-								placeholder="Введите группу направления использования">
+								placeholder="Введите тип направления использования">
 						</div>
 						<div class="form-group">
 							<span>Разрешение на чтение</span>
@@ -130,7 +153,7 @@
 							{% endif %}
 						{% endfor %}
 						<div class="form-group">
-							<button type="submit" class="btn btn-primary form-control">Сохранить</button>
+							<button type="submit" class="btn btn-primary form-control" onclick="">Сохранить</button>
 						</div>
 						{% if error %}
 							<div class="form-group">
