@@ -36,7 +36,8 @@
 			}
 		</style>
 		<script type="text/javascript">
-			function get_groups(kind_id) {
+			function get_groups() {
+				var kind_id = $("#deposit_kind_id").val();
 				$.get("{{ url_for('deposit_groups_ajax') }}?deposit_kind_id=" + kind_id, function(data) {
 					var html = "";
 					for (idx in data) {
@@ -44,6 +45,20 @@
 						html += "<option value='" + item["group_id"] +"'>" + item["name"] + "</option>";
 					}
 					$("#deposit_group_id").html(html);
+					get_types();
+				});
+			}
+			function get_types() {
+				var kind_id = $("#deposit_kind_id").val();
+				var group_id = $("#deposit_group_id").val();
+				$.get("{{ url_for('deposit_types_ajax') }}?deposit_kind_id=" + kind_id +
+						'&deposit_group_id=' + group_id, function(data) {
+					var html = "";
+					for (idx in data) {
+						var item = data[idx];
+						html += "<option value='" + item["type_id"] +"'>" + item["name"] + "</option>";
+					}
+					$("#deposit_type_id").html(html);
 				});
 			}
 		</script>
@@ -70,10 +85,10 @@
 							<tr>
 								<td><a href="/deposit_groups/">Группы</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposit_types/">Типы</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/deposit_subtypes/">Подтипы</a></td>
 							</tr>
 							<tr>
@@ -110,11 +125,11 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/add_deposit_type/" method="post">
+					<form action="/add_deposit_subtype/" method="post">
 						<div class="form-group">
 							<select name="deposit_kind_id" id="deposit_kind_id" 
 									class="form-control" 
-									onchange="get_groups(this.value)">
+									onchange="get_groups()">
 								{% for deposit_kind in deposit_kinds %}
 								<option value="{{ deposit_kind.kind_id }}">{{ deposit_kind.name }}</option>
 								{% endfor %} 
@@ -123,16 +138,26 @@
 						<div class="form-group">
 							<select name="deposit_group_id" 
 									id="deposit_group_id" 
-									class="form-control">
+									class="form-control"
+									onchange="get_types()">
 								{% for deposit_group in deposit_groups %}
 								<option value="{{ deposit_group.group_id }}">{{ deposit_group.name }}</option>
 								{% endfor %} 
 							</select>
 						</div>
 						<div class="form-group">
-							<input type="text" name="deposit_type" 
+							<select name="deposit_type_id" 
+									id="deposit_type_id" 
+									class="form-control">
+								{% for deposit_type in deposit_types %}
+								<option value="{{ deposit_type.type_id }}">{{ deposit_type.name }}</option>
+								{% endfor %} 
+							</select>
+						</div>
+						<div class="form-group">
+							<input type="text" name="deposit_subtype" 
 								class="form-control" 
-								placeholder="Введите тип">
+								placeholder="Введите подтип">
 						</div>
 						<div class="form-group">
 							<span>Разрешение на чтение</span>
