@@ -52,7 +52,7 @@
 							<tr>
 								<td><a href="/amount_units/">Единицы измерения</a></td>
 							</tr>
-							<tr  class="active">
+							<tr>
 								<td><a href="/deposit_kinds/">Виды</a></td>
 							</tr>
 							<tr>
@@ -64,7 +64,7 @@
 							<tr>
 								<td><a href="/deposit_subtypes/">Подтипы</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/minerals/">Полезные ископаемые</a></td>
 							</tr>
 							<tr>
@@ -98,25 +98,32 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form>
+					<form action="/minerals/" method="get" onchange="this.submit()">
 						<div class="form-group">
-							<a href="/add_deposit_kind/">Добавить</a>
+							<a href="/add_mineral/">Добавить</a><br/>
+						</div>
+						<div class="form-group">
+							<select name="amount_unit_id" class="form-control">
+								{% for amount_unit in amount_units %}
+								<option value="{{ amount_unit.amount_unit_id }}">{{ amount_unit.name }}</option>
+								{% endfor %} 
+							</select>
 						</div>
 						<div class="form-group">
 							<table class="table">
 								<thead class="thead-dark">
 									<tr>
-										<th>Вид</th>
+										<th>Полезное ископаемое</th>
 										<th>Действие</th>
 									</tr>
 								</thead>
 								<tbody>
-									{% for deposit_kind in deposit_kinds %}
+									{% for mineral in minerals %}
 									<tr>
-										<td>{{ deposit_kind.name }}</td>
+										<td>{{ mineral.name }}</td>
 										<td>
-											<a href="/delete_deposit_kind?kind_id={{ deposit_kind.kind_id }}">Удалить</a>
-											<a href="/edit_deposit_kind?kind_id={{ deposit_kind.kind_id }}">Редактировать</a>
+											<a href="/delete_mineral?mineral_id={{ mineral.mineral_id }}">Удалить</a>
+											<a href="/edit_mineral?mineral_id={{ mineral.mineral_id }}">Редактировать</a>
 										</td>
 									</tr>
 									{% endfor %}

@@ -196,16 +196,50 @@ def get_deposit_types(deposit_kind_id, deposit_group_id):
 	"""
 	g.cur.execute(query, [deposit_kind_id, deposit_group_id]);
 	rows = g.cur.fetchall();
-	deposit_groups = [];
+	deposit_types = [];
 	for row in rows:
-		deposit_groups.append({
+		deposit_types.append({
 			"id": row["id"], 
 			"name": row["name_ru"], 
 			"kind_id": row["kind_id"],
 			"group_id": row["group_id"],
 			"type_id": row["type_id"]
 		});
-	return deposit_groups;
+	return deposit_types;
+
+
+def get_amount_units():
+	query = """
+		SELECT id, name_ru
+			FROM amount_units
+				ORDER BY name_ru ASC
+	""";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	amount_units = [];
+	for row in rows:
+		amount_units.append({
+			"amount_unit_id": row["id"], 
+			"name": row["name_ru"]
+		});
+	return amount_units;
+
+def get_minerals(amount_unit_id):
+	query = """
+		SELECT id, name_ru
+			FROM minerals
+				WHERE amount_unit_id = %s
+				ORDER BY name_ru ASC
+	""";
+	g.cur.execute(query, [amount_unit_id]);
+	rows = g.cur.fetchall();
+	minerals = [];
+	for row in rows:
+		minerals.append({
+			"mineral_id": row["id"], 
+			"name": row["name_ru"]
+		});
+	return minerals;
 
 """
 Returns area
@@ -223,12 +257,21 @@ def get_area(region_id, area_id):
 		return None;
 	return row["name_ru"];
 
+
 """
 Gets amount unit name by ID
 """
 def get_amount_unit(amount_unit_id):
 	query = "SELECT name_ru FROM amount_units WHERE id = %s";
 	g.cur.execute(query, [amount_unit_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["name_ru"];
+
+def get_mineral(mineral_id):
+	query = "SELECT name_ru FROM minerals WHERE id = %s";
+	g.cur.execute(query, [mineral_id]);
 	row = g.cur.fetchone();
 	if not row:
 		return None;
@@ -322,6 +365,14 @@ def check_for_collision_in_names(amount_unit):
 	rows = g.cur.fetchall();
 	return len(rows) > 0;
 
+def check_for_collision_in_mineral(mineral):
+	if not mineral or mineral == "":
+		return True;
+	query = "SELECT id FROM minerals WHERE name_ru LIKE %s";
+	g.cur.execute(query, [mineral]);
+	rows = g.cur.fetchall();
+	return len(rows) > 0;
+
 """
 Gets resource id for the given amount unit
 """
@@ -331,6 +382,20 @@ def get_resource_id_for_amount_unit(amount_unit_id):
 			WHERE id = %s
 	""";
 	g.cur.execute(query, [amount_unit_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];
+
+"""
+Gets resource id for the given mineral
+"""
+def get_resource_id_for_mineral(mineral_id):
+	query = """
+		SELECT resource_id FROM minerals
+			WHERE id = %s
+	""";
+	g.cur.execute(query, [mineral_id]);
 	row = g.cur.fetchone();
 	if not row:
 		return None;
@@ -607,7 +672,7 @@ def areas():
 				break;
 		query = """
 				SELECT a.id, a.name_ru, a.area_id, a.region_id FROM areas a 
-				WHERE a.region_id = %s AND a.area_id <> 0
+				WHERE a.region_id = %s AND a.area_id <> 0 ORDER BY a.name_ru ASC
 				""";
 		g.cur.execute(query, [int(region_id)]);
 		rows = g.cur.fetchall();
@@ -1274,14 +1339,13 @@ def deposit_types():
 			else:
 				deposit_kind_id = -1;
 		deposit_groups = get_deposit_groups(deposit_kind_id);
-
 		for deposit_kind in deposit_kinds:
 			if deposit_kind["kind_id"] == int(deposit_kind_id):
 				deposit_kinds.remove(deposit_kind);
 				deposit_kinds.insert(0, deposit_kind);
 				break;
 
-		if not deposit_group_id:
+		if not deposit_group_id or not get_deposit_group(deposit_kind_id, deposit_group_id):
 			if len(deposit_groups) > 0:
 				deposit_group_id = deposit_groups[0]["group_id"];
 			else:
@@ -1568,7 +1632,7 @@ def deposit_subtypes():
 				deposit_kinds.insert(0, deposit_kind);
 				break;
 		deposit_groups = get_deposit_groups(deposit_kind_id);
-		if not deposit_group_id:
+		if not deposit_group_id or not get_deposit_group(deposit_kind_id, deposit_group_id):
 			if len(deposit_groups) > 0:
 				deposit_group_id = deposit_groups[0]["group_id"];
 			else:
@@ -1579,7 +1643,7 @@ def deposit_subtypes():
 				deposit_groups.insert(0, deposit_group);
 				break;
 		deposit_types = get_deposit_types(deposit_kind_id, deposit_group_id);
-		if not deposit_type_id:
+		if not deposit_type_id or not get_deposit_type(deposit_kind_id, deposit_group_id, deposit_type_id):
 			if len(deposit_types) > 0:
 				deposit_type_id = deposit_types[0]["type_id"];
 			else:
@@ -1592,7 +1656,8 @@ def deposit_subtypes():
 		query = """
 				SELECT dt.id, dt.kind_id, dt.group_id, dt.type_id, dt.subtype_id, dt.name_ru FROM deposit_types dt 
 				WHERE dt.kind_id = %s AND dt.group_id = %s
-				AND dt.type_id = %s AND dt.subtype_id <> 0
+				AND dt.type_id = %s AND dt.subtype_id <> 0 
+				ORDER BY name_ru ASC
 				""";
 		g.cur.execute(query, [int(deposit_kind_id), int(deposit_group_id), int(deposit_type_id)]);
 		rows = g.cur.fetchall();
@@ -1668,7 +1733,6 @@ def edit_deposit_subtype():
 		deposit_group_id = request.args.get("group_id", None);
 		deposit_type_id = request.args.get("type_id", None);
 		deposit_subtype_id = request.args.get("subtype_id", None);
-		print(deposit_subtype_id)
 		if not get_deposit_kind(deposit_kind_id):
 			return make_response(redirect(url_for("deposit_subtypes")));
 		if not get_deposit_group(deposit_kind_id, deposit_group_id):
@@ -1737,7 +1801,11 @@ def edit_deposit_subtype():
 					AND type_id = %s
 					AND subtype_id = %s
 		""";
-		g.cur.execute(query, [deposit_subtype, deposit_kind_id, deposit_group_id, deposit_type_id, deposit_subtype_id]);
+		g.cur.execute(query, [deposit_subtype, 
+			deposit_kind_id, 
+			deposit_group_id, 
+			deposit_type_id, 
+			deposit_subtype_id]);
 		g.db.commit();
 		return make_response(redirect(url_for("deposit_subtypes")));
 
@@ -1931,6 +1999,151 @@ def add_deposit_subtype():
 			deposit_subtype, uuid]);
 		g.db.commit();
 		return make_response(redirect(url_for("deposit_subtypes")));
+
+@app.route("/minerals/", methods=["GET"])
+def minerals():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		amount_unit_id = request.args.get("amount_unit_id", None);
+		amount_units = get_amount_units();
+		if not amount_unit_id:
+			amount_unit_id = amount_units[0]["amount_unit_id"];
+		else:
+			for amount_unit in amount_units:
+				if int(amount_unit_id) == amount_unit["amount_unit_id"]:
+					amount_units.remove(amount_unit);
+					amount_units.insert(0, amount_unit);
+					break;
+		minerals = get_minerals(amount_unit_id);
+		return make_response(render_template("minerals.html", 
+				amount_units = amount_units,
+				minerals = minerals));
+
+@app.route("/delete_mineral/", methods=["GET"])
+def delete_mineral():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		mineral_id = request.args.get("mineral_id", None);
+		query = """
+			DELETE FROM resources 
+				WHERE id = (SELECT resource_id FROM minerals WHERE id = %s)
+		""";
+		g.cur.execute(query, [mineral_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("minerals")));
+
+@app.route("/add_mineral/", methods = ["GET", "POST"])
+def add_mineral():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		amount_units = get_amount_units();
+		if len(amount_units) == 0:
+			return make_response(redirect(url_for("amount_units")));
+		return make_response(render_template("add_mineral.html", 
+			amount_units = amount_units, 
+			permissions = get_default_permissions(), 
+			error = None));
+	else:
+		amount_unit_id = request.form.get("amount_unit_id", None);
+		if not amount_unit_id:
+			return make_response(redirect(url_for("minerals")));
+		if not get_amount_unit(amount_unit_id):
+			return make_response(redirect(url_for("minerals")));
+		mineral = request.form.get("mineral", None);
+		if check_for_collision_in_mineral(mineral):
+			return make_response(render_template("add_mineral.html", 
+				amount_units = amount_units, 
+				permissions = get_default_permissions(), 
+				error = u"Неверное название для полезного ископаемого"));
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			INSERT INTO minerals(
+				amount_unit_id, 
+				name_en, 
+				name_ru, 
+				name_uz, 
+				resource_id)
+			VALUES(
+				%s, 
+				"",
+				%s,
+				"",
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [
+			int(amount_unit_id), 
+			mineral, 
+			uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("minerals")));
+
+@app.route("/edit_mineral/", methods = ["GET", "POST"])
+def edit_mineral():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		mineral_id = request.args.get("mineral_id");
+		if not get_mineral(mineral_id):
+			return make_response(redirect(url_for("minerals")));
+		resource_id = get_resource_id_for_mineral(mineral_id);
+		if not resource_id:
+			return make_response(redirect(url_for("minerals")));
+		return make_response(render_template("edit_mineral.html", 
+			mineral_id = mineral_id, 
+			mineral = get_mineral(mineral_id),
+			permissions = get_permissions(resource_id), 
+			error = None));
+	else:
+		mineral_id = request.form.get("mineral_id", None);
+		if not mineral_id:
+			return make_response(redirect(url_for("minerals")));
+		if not get_mineral(mineral_id):
+			return make_response(redirect(url_for("minerals")));
+		mineral = request.form.get("mineral", None);
+		if check_for_collision_in_mineral(mineral):
+			return make_response(render_template("add_mineral.html", 
+				amount_units = amount_units, 
+				mineral = get_mineral(mineral_id),
+				permissions = get_default_permissions(), 
+				error = u"Неверное название для полезного ископаемого"));
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			UPDATE minerals set name_ru = %s
+				WHERE id = %s
+		""";
+		g.cur.execute(query, [
+			mineral, 
+			int(mineral_id)]);
+		g.db.commit();
+		return make_response(redirect(url_for("minerals")));
 
 if __name__ == "__main__":
 	app.run();
