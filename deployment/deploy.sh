@@ -2,9 +2,10 @@
 
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 cd $SCRIPTPATH/../
-git pull
+#git pull
 sudo mkdir -p /opt/geomap-admin/
 sudo mkdir -p /opt/geomap-admin/templates
+sudo mkdir -p /opt/geomap-admin/static
 sudo rsync -rv ./templates/* /opt/geomap-admin/templates/
 sudo rsync -rv ./static/* /opt/geomap-admin/static
 sudo rsync -rv *.py /opt/geomap-admin/
