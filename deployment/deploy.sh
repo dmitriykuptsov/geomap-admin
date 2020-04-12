@@ -14,4 +14,4 @@ sudo rsync -rv deployment/systemd/geoapi-admin.service /etc/systemd/system
 sudo systemctl enable geoapi-admin
 sudo systemctl daemon-reload
 sudo service geoapi-admin restart
-#echo "The server is accessable @ http://localhost:5001/"
+echo "The server is accessable @ http://localhost:5000/"

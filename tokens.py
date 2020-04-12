@@ -53,7 +53,6 @@ class Token:
 
 	@staticmethod
 	def encode(role_id, user_id, hased_token, server_nonce, expires_in):
-		# Hash based token is redundant here
 		now = int(time.mktime(time.gmtime()))
 		valid_until = now + expires_in;
 		token = json.dumps({

@@ -18,9 +18,6 @@ unpad = lambda s: s[:-ord(s[len(s) - 1:])]
 
 class AESCipher:
 	def __init__(self, key):
-		#self.key = sha256(key.encode('utf8')).digest();
-		#Lets not depend on the security of a hash function
-		#The key needs to be exactly 256 bits long
 		self.key = key;
 
 	def encrypt(self, plaintext):

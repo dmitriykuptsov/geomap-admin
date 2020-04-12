@@ -20,7 +20,6 @@ import traceback
 from config import config
 from tokens import Token
 from utils import Utils
-from helpers import LoginStatus
 
 app = Flask(__name__);
 #CORS(app);
@@ -65,20 +64,20 @@ role and user IDs are returned.
 """
 def valid_login(username, password):
 	if not re.match("^[a-z0-9]{5,100}$", username):
-		return LoginStatus(False, None, None);
+		return (False, None, None);
 	if not re.match("^(?=.*[A-Z]+)(?=.*[a-z]+)(?=.*[0-9]+)(?=.*[$#%]+)", password) or \
 		not re.match("^[a-zA-Z0-9#$%&@]{10,100}$", password):
-		return LoginStatus(False, None, None);
+		return (False, None, None);
 	query = """SELECT u.id AS user_id, u.role_id, r.role FROM users u 
 		INNER JOIN roles r ON r.id = u.role_id 
 		WHERE u.username = %s AND u.password = SHA2((%s), 256) AND enabled = TRUE;""";
 	g.cur.execute(query, [username, password + config["PASSWORD_SALT"]]);
 	row = g.cur.fetchone();
 	if not row:
-		return LoginStatus(False, None, None);
+		return (False, None, None);
 	role_id = row["role_id"];
 	user_id = row["user_id"];
-	return LoginStatus(True, role_id, user_id);
+	return (True, role_id, user_id);
 	
 """
 Checks whether the session is valid
@@ -625,7 +624,7 @@ def login():
 		return redirect(url_for('login'));
 	if request.method == "POST":
 		login_status = valid_login(request.form["username"], request.form["password"]);
-		if login_status.success:
+		if login_status[0]:
 			expire_date = datetime.datetime.utcnow() + \
 				datetime.timedelta(seconds=config["MAX_SESSION_DURATION_IN_SECONDS"])
 			random_token = Utils.token_hex();
@@ -633,8 +632,8 @@ def login():
 			response.set_cookie(
 				"token", 
 				Token.encode(
-					login_status.role_id, 
-					login_status.user_id, 
+					login_status[1], 
+					login_status[2], 
 					random_token,
 					config["SERVER_NONCE"],
 					config["MAX_SESSION_DURATION_IN_SECONDS"]), 
@@ -2146,4 +2145,4 @@ def edit_mineral():
 		return make_response(redirect(url_for("minerals")));
 
 if __name__ == "__main__":
-	app.run();
+	app.run(port = 5000, host="0.0.0.0");
