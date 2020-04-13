@@ -55,7 +55,7 @@
 							<tr>
 								<td><a href="/deposit_kinds/">Виды</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposit_groups/">Группы</a></td>
 							</tr>
 							<tr>
@@ -70,7 +70,7 @@
 							<tr>
 								<td><a href="/deposit_statuses/">Статусы</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/companies/">Организации</a></td>
 							</tr>
 							<tr>
@@ -98,17 +98,15 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/edit_deposit_kind/" method="post">
+					<form action="/edit_company/" method="post">
 						<div class="form-group">
-							<input type="hidden" 
-								name="deposit_kind_id" 
-								value="{{deposit_kind_id}}">
+							<input type="hidden" name="company_id" value="{{company_id}}">
 						</div>
 						<div class="form-group">
-							<input type="text" name="deposit_kind" 
+							<input type="text" name="company" 
 								class="form-control" 
-								placeholder="Введите вид направления использования"
-								value="{{deposit_kind}}">
+								placeholder="Введите наименование организации"
+								value="{{company}}">
 						</div>
 						<div class="form-group">
 							<span>Разрешение на чтение</span>

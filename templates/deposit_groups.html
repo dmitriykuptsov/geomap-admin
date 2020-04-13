@@ -71,7 +71,7 @@
 								<td><a href="/deposit_statuses/">Статусы</a></td>
 							</tr>
 							<tr>
-								<td><a href="#">Организации</a></td>
+								<td><a href="/companies/">Организации</a></td>
 							</tr>
 							<tr>
 								<td><a href="#">Участки</a></td>
@@ -99,6 +99,9 @@
 				</div>
 				<div class="col-sm-9">
 					<form action="/deposit_groups/" method="get" onchange="this.submit()">
+						<div class="form-group">
+							<a href="/add_deposit_group/">Добавить</a>
+						</div>
 						<div class="form-group">
 							<select name="deposit_kind_id" class="form-control">
 								{% for deposit_kind in deposit_kinds %}

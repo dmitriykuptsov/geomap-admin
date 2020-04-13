@@ -372,6 +372,17 @@ def get_deposit_subtype(
 		return None;
 	return row["name_ru"];
 
+def get_company(company_id):
+	query = """
+		SELECT name_ru FROM companies
+			WHERE id = %s 
+	""";
+	g.cur.execute(query, [company_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["name_ru"];
+
 """
 Checks for collision in amount unit names
 """
@@ -397,6 +408,14 @@ def check_for_collision_in_depsoit_status(deposit_status):
 	rows = g.cur.fetchall();
 	return len(rows) > 0;
 
+def check_for_collision_in_company(company):
+	if not company or company == "":
+		return True;
+	query = "SELECT id FROM companies WHERE name_ru LIKE %s";
+	g.cur.execute(query, [company]);
+	rows = g.cur.fetchall();
+	return len(rows) > 0;
+
 """
 Gets resource id for the given amount unit
 """
@@ -417,6 +436,17 @@ def get_resource_id_for_deposit_status(deposit_status_id):
 			WHERE id = %s
 	""";
 	g.cur.execute(query, [deposit_status_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];	
+
+def get_resource_id_for_company(company_id):
+	query = """
+		SELECT resource_id FROM companies
+			WHERE id = %s
+	""";
+	g.cur.execute(query, [company_id]);
 	row = g.cur.fetchone();
 	if not row:
 		return None;
@@ -2316,7 +2346,7 @@ def edit_deposit_status():
 		deposit_status_id = request.form.get("deposit_status_id", None);
 		deposit_status = request.form.get("deposit_status", None);
 		if not get_deposit_status(deposit_status_id):
-			return make_response(redirect(url_for("amount_units")));
+			return make_response(redirect(url_for("deposit_statuses")));
 		resource_id = get_resource_id_for_deposit_status(deposit_status_id);
 		#Make regular expression here
 		if not deposit_status or deposit_status == "":
@@ -2335,6 +2365,136 @@ def edit_deposit_status():
 		g.cur.execute(query, [deposit_status, deposit_status_id]);
 		g.db.commit();
 		return make_response(redirect(url_for("deposit_statuses")));
+
+@app.route("/companies/", methods=["GET", "POST"])
+def companies():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		query = "SELECT id, name_ru FROM companies ORDER BY name_ru ASC";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		companies = [];
+		for row in rows:
+			companies.append({
+				"company_id": row["id"], 
+				"name": row["name_ru"]
+				});
+		return render_template("companies.html", 
+			companies = companies, 
+			token = get_hash(request.cookies.get("token", None)));
+	else:
+		return redirect(url_for('login'));
+
+@app.route("/delete_company/", methods=["GET", "POST"])
+def delete_company():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		company_id = request.args.get("company_id", None);
+		if not company_id:
+			return make_response(redirect(url_for("companies")));
+		query = """
+			DELETE FROM resources 
+				WHERE id = 
+					(SELECT resource_id FROM companies WHERE id = %s)
+		""";
+		g.cur.execute(query, [int(company_id)]);
+		rows = g.db.commit();
+		return make_response(redirect(url_for("companies")));
+	else:
+		return redirect(url_for('login'));
+
+@app.route("/add_company/", methods=["GET", "POST"])
+def add_company():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return render_template("add_company.html", 
+			permissions = get_default_permissions(), 
+			error = None);
+	elif request.method == "POST":
+		company = request.form.get("company", None);
+		#Make regular expression here
+		if not company or company == "":
+			return render_template("add_company.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверное наименование для организации");
+		if check_for_collision_in_company(company):
+			return render_template("add_company.html", 
+				permissions = get_default_permissions(), 
+				error = u"Данная организация уже существует в базе");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			INSERT INTO companies(name_en, name_ru, name_uz, resource_id)
+			VALUES(
+				"", %s, "",
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [company, uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("companies")));
+
+@app.route("/edit_company/", methods=["GET", "POST"])
+def edit_company():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		company_id = request.args.get("company_id", None);
+		if not get_company(company_id):
+			return make_response(redirect(url_for("companies")));
+		resource_id = get_resource_id_for_company(company_id);
+		return render_template("edit_company.html", 
+			company_id = company_id,
+			company = get_company(company_id),
+			permissions = get_permissions(resource_id), 
+			error = None);
+	elif request.method == "POST":
+		company_id = request.form.get("company_id", None);
+		company = request.form.get("company", None);
+		if not get_company(company_id):
+			return make_response(redirect(url_for("companies")));
+		resource_id = get_resource_id_for_company(company_id);
+		#Make regular expression here
+		if not company or company == "":
+			return render_template("edit_company.html", 
+				company_id = company_id,
+				company = get_company(company_id),
+				permissions = get_permissions(resource_id),
+				error = u"Неверное наименование для организации");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		update_read_permissions(permitted_roles, resource_id);
+		query = """
+			UPDATE companies SET name_ru = %s
+				WHERE id = %s
+		""";
+		g.cur.execute(query, [company, company_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("companies")));
 
 if __name__ == "__main__":
 	app.run(port = 5000, host="0.0.0.0");

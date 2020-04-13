@@ -55,7 +55,7 @@
 							<tr>
 								<td><a href="/deposit_kinds/">Виды</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposit_groups/">Группы</a></td>
 							</tr>
 							<tr>
@@ -63,14 +63,14 @@
 							</tr>
 							<tr>
 								<td><a href="/deposit_subtypes/">Подтипы</a></td>
-							</tr>							
+							</tr>
 							<tr>
 								<td><a href="/minerals/">Полезные ископаемые</a></td>
 							</tr>
 							<tr>
 								<td><a href="/deposit_statuses/">Статусы</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/companies/">Организации</a></td>
 							</tr>
 							<tr>
@@ -98,46 +98,31 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/edit_deposit_kind/" method="post">
+					<form action="/companies/" method="get">
 						<div class="form-group">
-							<input type="hidden" 
-								name="deposit_kind_id" 
-								value="{{deposit_kind_id}}">
+							<a href="/add_company/">Добавить</a><br/>
 						</div>
 						<div class="form-group">
-							<input type="text" name="deposit_kind" 
-								class="form-control" 
-								placeholder="Введите вид направления использования"
-								value="{{deposit_kind}}">
+							<table class="table">
+								<thead class="thead-dark">
+									<tr>
+										<th>Организация</th>
+										<th>Действие</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for company in companies %}
+									<tr>
+										<td>{{ company.name }}</td>
+										<td>
+											<a href="/delete_company?company_id={{ company.company_id }}&token={{token}}">Удалить</a>
+											<a href="/edit_company?company_id={{ company.company_id }}">Редактировать</a>
+										</td>
+									</tr>
+									{% endfor %}
+								</tbody>
+							</table>
 						</div>
-						<div class="form-group">
-							<span>Разрешение на чтение</span>
-						</div>
-						{% for permission in permissions %}
-							{% if permission["granted"] %}
-								<div class="form-group">
-									<input type="checkbox" 
-										checked 
-										name="{{permission["role"]}}">
-								{{permission["role"]}}
-								</div>
-							{% else %}
-								<div class="form-group">
-									<input type="checkbox" 
-									name="{{permission["role"]}}">{{permission["role"]}}
-								</div>
-							{% endif %}
-						{% endfor %}
-						<div class="form-group">
-							<button type="submit" class="btn btn-primary form-control">Сохранить</button>
-						</div>
-						{% if error %}
-							<div class="form-group">
-								<div class="alert alert-danger" role="alert">
-									<span>{{ error }}</span>
-								</div>
-							</div>
-						{% endif %}
 					</form>
 				</div>
 			</div>
