@@ -96,6 +96,15 @@ def is_admin(cookie):
 		return False;
 	return row["id"] == Token.get_role_id(Token.decode(cookie));
 
+"""
+Checks whether the token is the same in cookie and and in request arguments
+"""
+def is_valid_hash(cookie, hash):
+	return Token.get_token_hash(Token.decode(cookie)) == hash;
+
+def get_hash(cookie):
+	return Token.get_token_hash(Token.decode(cookie));
+
 """ 
 Get submitted roles from form
 """
@@ -683,7 +692,10 @@ def areas():
 				"area_id": row["area_id"], 
 				"region_id": row["region_id"]
 				});
-		return render_template("areas.html", regions = regions, areas = areas);
+		return render_template("areas.html", 
+			regions = regions, 
+			areas = areas, 
+			token = get_hash(request.cookies.get("token", None)));
 	else:
 		return redirect(url_for('login'));
 
@@ -697,6 +709,8 @@ def delete_area():
 	If user is admin, then he/she can delete, create and modify all records already
 	"""
 	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	#role_id = Token.get_role_id(Token.decode(request.cookies.get("token", None)));
 	region_id = request.args.get("region_id", None);
@@ -827,7 +841,9 @@ def amount_units():
 				"id": row["id"], 
 				"name": row["name_ru"]
 				});
-		return render_template("amount_units.html", amount_units = amount_units);
+		return render_template("amount_units.html", 
+			amount_units = amount_units, 
+			token = get_hash(request.cookies.get("token", None)));
 	else:
 		return redirect(url_for('login'));
 
@@ -838,6 +854,8 @@ def delete_amount_units():
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
 		amount_unit_id = request.args.get("amount_unit_id", None);
@@ -967,7 +985,9 @@ def deposit_kinds():
 				"kind_id": row["kind_id"], 
 				"name": row["name_ru"]
 				});
-		return render_template("deposit_kinds.html", deposit_kinds = deposit_kinds);
+		return render_template("deposit_kinds.html", 
+			deposit_kinds = deposit_kinds,
+			token = get_hash(request.cookies.get("token", None)));
 	else:
 		return redirect(url_for('login'));
 
@@ -978,6 +998,8 @@ def delete_deposit_kind():
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
 		deposit_kind_id = request.args.get("kind_id", None);
@@ -1187,7 +1209,8 @@ def deposit_groups():
 				});
 		return make_response(render_template("deposit_groups.html", 
 			deposit_kinds = deposit_kinds, 
-			deposit_groups = deposit_groups));
+			deposit_groups = deposit_groups,
+			token = get_hash(request.cookies.get("token", None))));
 
 @app.route("/delete_deposit_group/", methods=["GET"])
 def delete_deposit_group():
@@ -1196,6 +1219,8 @@ def delete_deposit_group():
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
 		deposit_kind_id = request.args.get("kind_id", None);
@@ -1375,7 +1400,8 @@ def deposit_types():
 		return make_response(render_template("deposit_types.html", 
 			deposit_kinds = deposit_kinds, 
 			deposit_groups = deposit_groups,
-			deposit_types = deposit_types
+			deposit_types = deposit_types,
+			token = get_hash(request.cookies.get("token", None))
 			));
 
 @app.route("/delete_deposit_type/", methods=["GET", "POST"])
@@ -1385,6 +1411,8 @@ def delete_deposit_type():
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
 		deposit_kind_id = request.args.get("kind_id", None);
@@ -1675,7 +1703,8 @@ def deposit_subtypes():
 			deposit_kinds = deposit_kinds, 
 			deposit_groups = deposit_groups,
 			deposit_types = deposit_types,
-			deposit_subtypes = deposit_subtypes
+			deposit_subtypes = deposit_subtypes,
+			token = get_hash(request.cookies.get("token", None))
 			));
 
 @app.route("/delete_deposit_subtype/", methods=["GET", "POST"])
@@ -1685,6 +1714,8 @@ def delete_deposit_subtype():
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
 		deposit_kind_id = request.args.get("kind_id", None);
@@ -2021,7 +2052,9 @@ def minerals():
 		minerals = get_minerals(amount_unit_id);
 		return make_response(render_template("minerals.html", 
 				amount_units = amount_units,
-				minerals = minerals));
+				minerals = minerals,
+				token = get_hash(request.cookies.get("token", None))
+				));
 
 @app.route("/delete_mineral/", methods=["GET"])
 def delete_mineral():
@@ -2030,6 +2063,8 @@ def delete_mineral():
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
 		mineral_id = request.args.get("mineral_id", None);
