@@ -7,6 +7,8 @@
 		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 		<script src="{{ url_for('static', filename='js/jquery-3.5.0.min.js') }}"></script>
 		<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+		<script src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script>		
+		<script src="{{ url_for('static', filename='js/dataTables.bootstrap4.min.js') }}"></script>
 		<style>
 			.header {
 				position: relative;
@@ -35,6 +37,11 @@
 				font-size: 12pt;
 			}
 		</style>
+		<script type="text/javascript">
+			$(document).ready(function() {
+				$('#companies_dt').DataTable();
+			});
+		</script>
 	</head>
 	<body>
 		<div class="header">
@@ -103,7 +110,7 @@
 							<a href="/add_company/">Добавить</a><br/>
 						</div>
 						<div class="form-group">
-							<table class="table">
+							<table class="table" id="companies_dt">
 								<thead class="thead-dark">
 									<tr>
 										<th>Организация</th>
