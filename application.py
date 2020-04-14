@@ -269,7 +269,7 @@ def get_licenses():
 	query = """
 		SELECT l.id AS license_id, l.license, l.date_of_issue, c.name_ru AS company_name
 			FROM licenses l 
-				INNER JOIN companies c ON l.company_id = c.id
+				INNER JOIN companies c ON l.company_id = c.id ORDER BY l.license ASC
 	"""
 	g.cur.execute(query);
 	rows = g.cur.fetchall();
@@ -278,7 +278,7 @@ def get_licenses():
 		licenses.append({
 			"id": row["license_id"], 
 			"license": row["license"],
-			"data_of_issue": row["date_of_issue"],
+			"date_of_issue": row["date_of_issue"],
 			"company_name": row["company_name"]
 		});
 	return licenses;
