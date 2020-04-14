@@ -2678,7 +2678,7 @@ def edit_site():
 		return make_response(redirect(url_for("sites")));
 
 @app.route("/licenses/", methods=["GET"])
-def sites():
+def licenses():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
 		return make_response(redirect(url_for("login")));
 	if not is_valid_session(request.cookies.get("token", None)):
