@@ -743,6 +743,9 @@ def update_read_permissions(roles, resource_id):
 def default():
 	return make_response(redirect("/login/"));
 
+@app.route("/denied/")
+	return render_template("denied.html"); 
+
 @app.route("/logout/")
 def logout():
 	response = make_response(redirect(url_for("login")));
@@ -752,7 +755,7 @@ def logout():
 @app.route("/login/", methods=["GET", "POST"])
 def login():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return redirect(url_for('login'));
+		return redirect(url_for('denied'));
 	if request.method == "POST":
 		login_status = valid_login(request.form["username"], request.form["password"]);
 		if login_status[0]:
@@ -782,7 +785,7 @@ def login():
 @app.route("/areas/", methods=["GET", "POST"])
 def areas():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -824,7 +827,7 @@ def areas():
 @app.route("/delete_area/", methods=["GET"])
 def delete_area():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	"""
@@ -851,7 +854,7 @@ def delete_area():
 @app.route("/add_area/", methods=["GET", "POST"])
 def add_area():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -901,7 +904,7 @@ def add_area():
 @app.route("/edit_area/", methods=["GET", "POST"])
 def edit_area():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -948,7 +951,7 @@ def edit_area():
 @app.route("/amount_units/", methods=["GET", "POST"])
 def amount_units():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -972,7 +975,7 @@ def amount_units():
 @app.route("/delete_amount_unit/", methods=["GET", "POST"])
 def delete_amount_units():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -997,7 +1000,7 @@ def delete_amount_units():
 @app.route("/add_amount_unit/", methods=["GET", "POST"])
 def add_amount_unit():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1037,7 +1040,7 @@ def add_amount_unit():
 @app.route("/edit_amount_unit/", methods=["GET", "POST"])
 def edit_amount_unit():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1087,7 +1090,7 @@ def edit_amount_unit():
 @app.route("/deposit_kinds/", methods=["GET", "POST"])
 def deposit_kinds():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1116,7 +1119,7 @@ def deposit_kinds():
 @app.route("/delete_deposit_kind/", methods=["GET", "POST"])
 def delete_deposit_kind():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1141,7 +1144,7 @@ def delete_deposit_kind():
 @app.route("/edit_deposit_kind/", methods=["GET", "POST"])
 def edit_deposit_kind():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1188,7 +1191,7 @@ def edit_deposit_kind():
 @app.route("/add_deposit_kind/", methods=["GET", "POST"])
 def add_deposit_kind():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1298,7 +1301,7 @@ def deposit_types_ajax():
 @app.route("/deposit_groups/", methods=["GET"])
 def deposit_groups():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1337,7 +1340,7 @@ def deposit_groups():
 @app.route("/delete_deposit_group/", methods=["GET"])
 def delete_deposit_group():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1365,7 +1368,7 @@ def delete_deposit_group():
 @app.route("/edit_deposit_group/", methods=["GET", "POST"])
 def edit_deposit_group():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1419,7 +1422,7 @@ def edit_deposit_group():
 @app.route("/add_deposit_group/", methods=["GET", "POST"])
 def add_deposit_group():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1470,7 +1473,7 @@ def add_deposit_group():
 @app.route("/deposit_types/", methods=["GET"])
 def deposit_types():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1529,7 +1532,7 @@ def deposit_types():
 @app.route("/delete_deposit_type/", methods=["GET", "POST"])
 def delete_deposit_type():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1564,7 +1567,7 @@ def delete_deposit_type():
 @app.route("/edit_deposit_type/", methods=["GET", "POST"])
 def edit_deposit_type():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1631,7 +1634,7 @@ def edit_deposit_type():
 @app.route("/add_deposit_type/", methods=["GET", "POST"])
 def add_deposit_type():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1760,7 +1763,7 @@ def add_deposit_type():
 @app.route("/deposit_subtypes/", methods=["GET"])
 def deposit_subtypes():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1832,7 +1835,7 @@ def deposit_subtypes():
 @app.route("/delete_deposit_subtype/", methods=["GET", "POST"])
 def delete_deposit_subtype():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1875,7 +1878,7 @@ def delete_deposit_subtype():
 @app.route("/edit_deposit_subtype/", methods=["GET", "POST"])
 def edit_deposit_subtype():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -1964,7 +1967,7 @@ def edit_deposit_subtype():
 @app.route("/add_deposit_subtype/", methods=["GET", "POST"])
 def add_deposit_subtype():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2155,7 +2158,7 @@ def add_deposit_subtype():
 @app.route("/minerals/", methods=["GET"])
 def minerals():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2181,7 +2184,7 @@ def minerals():
 @app.route("/delete_mineral/", methods=["GET"])
 def delete_mineral():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2201,7 +2204,7 @@ def delete_mineral():
 @app.route("/add_mineral/", methods = ["GET", "POST"])
 def add_mineral():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2256,7 +2259,7 @@ def add_mineral():
 @app.route("/edit_mineral/", methods = ["GET", "POST"])
 def edit_mineral():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2304,7 +2307,7 @@ def edit_mineral():
 @app.route("/deposit_statuses/", methods=["GET", "POST"])
 def deposit_statuses():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2328,7 +2331,7 @@ def deposit_statuses():
 @app.route("/delete_deposit_status/", methods=["GET", "POST"])
 def delete_deposit_status():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2353,7 +2356,7 @@ def delete_deposit_status():
 @app.route("/add_deposit_status/", methods=["GET", "POST"])
 def add_deposit_status():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2392,7 +2395,7 @@ def add_deposit_status():
 @app.route("/edit_deposit_status/", methods=["GET", "POST"])
 def edit_deposit_status():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2434,7 +2437,7 @@ def edit_deposit_status():
 @app.route("/companies/", methods=["GET", "POST"])
 def companies():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2458,7 +2461,7 @@ def companies():
 @app.route("/delete_company/", methods=["GET", "POST"])
 def delete_company():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2483,7 +2486,7 @@ def delete_company():
 @app.route("/add_company/", methods=["GET", "POST"])
 def add_company():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2522,7 +2525,7 @@ def add_company():
 @app.route("/edit_company/", methods=["GET", "POST"])
 def edit_company():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2564,7 +2567,7 @@ def edit_company():
 @app.route("/sites/", methods=["GET"])
 def sites():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2579,7 +2582,7 @@ def sites():
 @app.route("/delete_site/", methods=["GET"])
 def delete_site():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2599,7 +2602,7 @@ def delete_site():
 @app.route("/add_site/", methods=["GET", "POST"])
 def add_site():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2638,7 +2641,7 @@ def add_site():
 @app.route("/edit_site/", methods=["GET", "POST"])
 def edit_site():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
@@ -2680,7 +2683,7 @@ def edit_site():
 @app.route("/licenses/", methods=["GET"])
 def licenses():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return make_response(redirect(url_for("login")));
+		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):

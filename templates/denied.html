@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru-RU">
+	<head>
+		<!-- https://www.w3schools.com/html/html5_syntax.asp -->
+		<title>Доступ запрещён</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+		<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+		<style>
+			.message {
+				position: absolute;
+				top: calc(50%);
+				left: calc(50%);
+				background-color: black;
+				font-weight: bold;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="message">
+			Доступ к системе запрещён для данного IP адреса
+		</div>
+	</body>
+</html>
