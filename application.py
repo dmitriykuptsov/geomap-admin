@@ -744,6 +744,7 @@ def default():
 	return make_response(redirect("/login/"));
 
 @app.route("/denied/")
+def denied():
 	return render_template("denied.html"); 
 
 @app.route("/logout/")
