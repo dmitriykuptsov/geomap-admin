@@ -265,6 +265,25 @@ def get_sites():
 		});
 	return sites;
 
+def get_licenses():
+	query = """
+		SELECT l.id AS license_id, l.license, l.date_of_issue, c.name_ru AS company_name
+			FROM licenses l 
+				INNER JOIN companies c ON l.company_id = c.id
+	"""
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	licenses = [];
+	for row in rows:
+		licenses.append({
+			"id": row["id"], 
+			"license": row["license"],
+			"data_of_issue": row["date_of_issue"],
+			"company_name": row["company_name"]
+		});
+	return licenses;
+
+
 """
 Returns area
 """
@@ -2658,5 +2677,20 @@ def edit_site():
 		g.db.commit();
 		return make_response(redirect(url_for("sites")));
 
+@app.route("/licenses/", methods=["GET"])
+def sites():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		licenses = get_licenses();
+		return make_response(render_template("licenses.html", 
+				licenses = licenses,
+				token = get_hash(request.cookies.get("token", None))
+				));
+
 if __name__ == "__main__":
-	app.run(port = 5000, host="0.0.0.0");
+	app.run(port = 5002, host="0.0.0.0");
