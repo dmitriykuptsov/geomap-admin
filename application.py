@@ -249,6 +249,22 @@ def get_minerals(amount_unit_id):
 		});
 	return minerals;
 
+def get_sites():
+	query = """
+		SELECT id, name_ru
+			FROM sites
+				ORDER BY name_ru ASC
+	""";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	sites = [];
+	for row in rows:
+		sites.append({
+			"id": row["id"], 
+			"name": row["name_ru"]
+		});
+	return sites;
+
 """
 Returns area
 """
@@ -383,6 +399,17 @@ def get_company(company_id):
 		return None;
 	return row["name_ru"];
 
+def get_site(site_id):
+	query = """
+		SELECT name_ru FROM sites
+			WHERE id = %s 
+	""";
+	g.cur.execute(query, [site_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["name_ru"];
+
 """
 Checks for collision in amount unit names
 """
@@ -397,6 +424,14 @@ def check_for_collision_in_mineral(mineral):
 		return True;
 	query = "SELECT id FROM minerals WHERE name_ru LIKE %s";
 	g.cur.execute(query, [mineral]);
+	rows = g.cur.fetchall();
+	return len(rows) > 0;
+
+def check_for_collision_in_site(site):
+	if not site or site == "":
+		return True;
+	query = "SELECT id FROM sites WHERE name_ru LIKE %s";
+	g.cur.execute(query, [site]);
 	rows = g.cur.fetchall();
 	return len(rows) > 0;
 
@@ -425,6 +460,17 @@ def get_resource_id_for_amount_unit(amount_unit_id):
 			WHERE id = %s
 	""";
 	g.cur.execute(query, [amount_unit_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];
+
+def get_resource_id_for_site(site_id):
+	query = """
+		SELECT resource_id FROM sites
+			WHERE id = %s
+	""";
+	g.cur.execute(query, [site_id]);
 	row = g.cur.fetchone();
 	if not row:
 		return None;
@@ -2495,6 +2541,122 @@ def edit_company():
 		g.cur.execute(query, [company, company_id]);
 		g.db.commit();
 		return make_response(redirect(url_for("companies")));
+
+@app.route("/sites/", methods=["GET"])
+def sites():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		sites = get_sites();
+		return make_response(render_template("sites.html", 
+				sites = sites,
+				token = get_hash(request.cookies.get("token", None))
+				));
+
+@app.route("/delete_site/", methods=["GET"])
+def delete_site():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		site_id = request.args.get("site_id", None);
+		query = """
+			DELETE FROM resources 
+				WHERE id = (SELECT resource_id FROM sites WHERE id = %s)
+		""";
+		g.cur.execute(query, [site_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("sites")));
+
+@app.route("/add_site/", methods=["GET", "POST"])
+def add_site():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return render_template("add_site.html", 
+			permissions = get_default_permissions(), 
+			error = None);
+	elif request.method == "POST":
+		site = request.form.get("site", None);
+		#Make regular expression here
+		if not site or site == "":
+			return render_template("add_site.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверное наименование для участка");
+		if check_for_collision_in_site(site):
+			return render_template("add_site.html", 
+				permissions = get_default_permissions(), 
+				error = u"Данный участок уже существует в базе");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			INSERT INTO sites(name_en, name_ru, name_uz, resource_id)
+			VALUES(
+				"", %s, "",
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [site, uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("sites")));
+
+@app.route("/edit_site/", methods=["GET", "POST"])
+def edit_site():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		site_id = request.args.get("site_id", None);
+		if not get_site(site_id):
+			return make_response(redirect(url_for("sites")));
+		resource_id = get_resource_id_for_site(site_id);
+		return render_template("edit_site.html", 
+			site_id = site_id,
+			site = get_site(site_id),
+			permissions = get_permissions(resource_id), 
+			error = None);
+	elif request.method == "POST":
+		site_id = request.form.get("site_id", None);
+		site = request.form.get("site", None);
+		if not get_site(site_id):
+			return make_response(redirect(url_for("companies")));
+		resource_id = get_resource_id_for_site(site_id);
+		#Make regular expression here
+		if not site or site == "":
+			return render_template("edit_site.html", 
+				site_id = site_id,
+				site = get_site(site_id),
+				permissions = get_permissions(resource_id),
+				error = u"Неверное наименование для участка");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		update_read_permissions(permitted_roles, resource_id);
+		query = """
+			UPDATE sites SET name_ru = %s
+				WHERE id = %s
+		""";
+		g.cur.execute(query, [site, site_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("sites")));
 
 if __name__ == "__main__":
 	app.run(port = 5000, host="0.0.0.0");

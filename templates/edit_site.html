@@ -2,7 +2,7 @@
 <html lang="ru-RU">
 	<head>
 		<title>Административная страница</title>
-		<meta charset="utf-8" /> 
+		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 		<script src="{{ url_for('static', filename='js/jquery-3.5.0.min.js') }}"></script>
@@ -35,18 +35,6 @@
 				font-size: 12pt;
 			}
 		</style>
-		<script type="text/javascript">
-			function get_groups(kind_id) {
-				$.get("{{ url_for('deposit_groups_ajax') }}?deposit_kind_id=" + kind_id, function(data) {
-					var html = "";
-					for (idx in data) {
-						var item = data[idx];
-						html += "<option value='" + item["group_id"] +"'>" + item["name"] + "</option>";
-					}
-					$("#deposit_group_id").html(html);
-				});
-			}
-		</script>
 	</head>
 	<body>
 		<div class="header">
@@ -70,12 +58,12 @@
 							<tr>
 								<td><a href="/deposit_groups/">Группы</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposit_types/">Типы</a></td>
 							</tr>
 							<tr>
 								<td><a href="/deposit_subtypes/">Подтипы</a></td>
-							</tr>
+							</tr>							
 							<tr>
 								<td><a href="/minerals/">Полезные ископаемые</a></td>
 							</tr>
@@ -85,7 +73,7 @@
 							<tr>
 								<td><a href="/companies/">Организации</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/sites/">Участки</a></td>
 							</tr>
 							<tr>
@@ -110,29 +98,15 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/add_deposit_type/" method="post">
+					<form action="/edit_site/" method="post">
 						<div class="form-group">
-							<select name="deposit_kind_id" id="deposit_kind_id" 
-									class="form-control" 
-									onchange="get_groups(this.value)">
-								{% for deposit_kind in deposit_kinds %}
-								<option value="{{ deposit_kind.kind_id }}">{{ deposit_kind.name }}</option>
-								{% endfor %} 
-							</select>
+							<input type="hidden" name="site_id" value="{{site_id}}">
 						</div>
 						<div class="form-group">
-							<select name="deposit_group_id" 
-									id="deposit_group_id" 
-									class="form-control">
-								{% for deposit_group in deposit_groups %}
-								<option value="{{ deposit_group.group_id }}">{{ deposit_group.name }}</option>
-								{% endfor %} 
-							</select>
-						</div>
-						<div class="form-group">
-							<input type="text" name="deposit_type" 
+							<input type="text" name="site" 
 								class="form-control" 
-								placeholder="Введите тип">
+								placeholder="Введите наименование участка"
+								value="{{site}}">
 						</div>
 						<div class="form-group">
 							<span>Разрешение на чтение</span>
@@ -153,7 +127,7 @@
 							{% endif %}
 						{% endfor %}
 						<div class="form-group">
-							<button type="submit" class="btn btn-primary form-control" onclick="">Сохранить</button>
+							<button type="submit" class="btn btn-primary form-control">Сохранить</button>
 						</div>
 						{% if error %}
 							<div class="form-group">

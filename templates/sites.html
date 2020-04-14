@@ -2,11 +2,13 @@
 <html lang="ru-RU">
 	<head>
 		<title>Административная страница</title>
-		<meta charset="utf-8" /> 
+		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 		<script src="{{ url_for('static', filename='js/jquery-3.5.0.min.js') }}"></script>
 		<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+		<script src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script>		
+		<script src="{{ url_for('static', filename='js/dataTables.bootstrap4.min.js') }}"></script>		
 		<style>
 			.header {
 				position: relative;
@@ -36,16 +38,39 @@
 			}
 		</style>
 		<script type="text/javascript">
-			function get_groups(kind_id) {
-				$.get("{{ url_for('deposit_groups_ajax') }}?deposit_kind_id=" + kind_id, function(data) {
-					var html = "";
-					for (idx in data) {
-						var item = data[idx];
-						html += "<option value='" + item["group_id"] +"'>" + item["name"] + "</option>";
+			$(document).ready(function() {
+				$('#dt').DataTable({
+					language: {
+						"processing": "Подождите...",
+						"search": "Поиск:",
+						"lengthMenu": "Показать _MENU_ записей",
+						"info": "Записи с _START_ до _END_ из _TOTAL_ записей",
+						"infoEmpty": "Записи с 0 до 0 из 0 записей",
+						"infoFiltered": "(отфильтровано из _MAX_ записей)",
+						"infoPostFix": "",
+						"loadingRecords": "Загрузка записей...",
+						"zeroRecords": "Записи отсутствуют.",
+						"emptyTable": "В таблице отсутствуют данные",
+						"paginate": {
+							"first": "Первая",
+							"previous": "Предыдущая",
+							"next": "Следующая",
+							"last": "Последняя"
+						},
+						"aria": {
+							"sortAscending": ": активировать для сортировки столбца по возрастанию",
+							"sortDescending": ": активировать для сортировки столбца по убыванию"
+						},
+						"select": {
+							"rows": {
+								"_": "Выбрано записей: %d",
+								"0": "Кликните по записи для выбора",
+								"1": "Выбрана одна запись"
+							}
+						}
 					}
-					$("#deposit_group_id").html(html);
 				});
-			}
+			});
 		</script>
 	</head>
 	<body>
@@ -70,7 +95,7 @@
 							<tr>
 								<td><a href="/deposit_groups/">Группы</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposit_types/">Типы</a></td>
 							</tr>
 							<tr>
@@ -85,7 +110,7 @@
 							<tr>
 								<td><a href="/companies/">Организации</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/sites/">Участки</a></td>
 							</tr>
 							<tr>
@@ -110,58 +135,31 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/add_deposit_type/" method="post">
+					<form>
 						<div class="form-group">
-							<select name="deposit_kind_id" id="deposit_kind_id" 
-									class="form-control" 
-									onchange="get_groups(this.value)">
-								{% for deposit_kind in deposit_kinds %}
-								<option value="{{ deposit_kind.kind_id }}">{{ deposit_kind.name }}</option>
-								{% endfor %} 
-							</select>
+							<a href="/add_site/">Добавить</a><br/>
 						</div>
 						<div class="form-group">
-							<select name="deposit_group_id" 
-									id="deposit_group_id" 
-									class="form-control">
-								{% for deposit_group in deposit_groups %}
-								<option value="{{ deposit_group.group_id }}">{{ deposit_group.name }}</option>
-								{% endfor %} 
-							</select>
+							<table class="table" id="dt">
+								<thead class="thead-dark">
+									<tr>
+										<th>Участок</th>
+										<th>Действие</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for site in sites %}
+									<tr>
+										<td>{{ site.name }}</td>
+										<td>
+											<a href="/delete_site?site_id={{ site.id }}&token={{token}}">Удалить</a>
+											<a href="/edit_site?site_id={{ site.id }}">Редактировать</a>
+										</td>
+									</tr>
+									{% endfor %}
+								</tbody>
+							</table>
 						</div>
-						<div class="form-group">
-							<input type="text" name="deposit_type" 
-								class="form-control" 
-								placeholder="Введите тип">
-						</div>
-						<div class="form-group">
-							<span>Разрешение на чтение</span>
-						</div>
-						{% for permission in permissions %}
-							{% if permission["granted"] %}
-								<div class="form-group">
-									<input type="checkbox" 
-										checked 
-										name="{{permission["role"]}}">
-								{{permission["role"]}}
-								</div>
-							{% else %}
-								<div class="form-group">
-									<input type="checkbox" 
-									name="{{permission["role"]}}">{{permission["role"]}}
-								</div>
-							{% endif %}
-						{% endfor %}
-						<div class="form-group">
-							<button type="submit" class="btn btn-primary form-control" onclick="">Сохранить</button>
-						</div>
-						{% if error %}
-							<div class="form-group">
-								<div class="alert alert-danger" role="alert">
-									<span>{{ error }}</span>
-								</div>
-							</div>
-						{% endif %}
 					</form>
 				</div>
 			</div>

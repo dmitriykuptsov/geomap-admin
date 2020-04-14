@@ -2,7 +2,6 @@
 
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 cd $SCRIPTPATH/../
-#git pull
 sudo mkdir -p /opt/geomap-admin/
 sudo mkdir -p /opt/geomap-admin/templates
 sudo mkdir -p /opt/geomap-admin/static
