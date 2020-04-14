@@ -276,7 +276,7 @@ def get_licenses():
 	licenses = [];
 	for row in rows:
 		licenses.append({
-			"id": row["id"], 
+			"id": row["license_id"], 
 			"license": row["license"],
 			"data_of_issue": row["date_of_issue"],
 			"company_name": row["company_name"]
