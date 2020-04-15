@@ -20,6 +20,7 @@ import traceback
 from config import config
 from tokens import Token
 from utils import Utils
+from datetime import datetime
 
 app = Flask(__name__);
 #CORS(app);
@@ -283,7 +284,22 @@ def get_licenses():
 		});
 	return licenses;
 
-
+def get_companies(partial_company_name):
+	partial_company_name = "%" + partial_company_name + "%";
+	query = """
+		SELECT id, name_ru FROM companies
+			WHERE UPPER(name_ru) LIKE UPPER(%s)
+				ORDER BY name_ru ASC
+	"""
+	g.cur.execute(query, [partial_company_name]);
+	rows = g.cur.fetchall();
+	companies = [];
+	for row in rows:
+		companies.append({
+			"id": row["id"],
+			"name": row["name_ru"]
+			});		
+	return companies;
 """
 Returns area
 """
@@ -429,12 +445,46 @@ def get_site(site_id):
 		return None;
 	return row["name_ru"];
 
+def get_license(license_id):
+	query = """
+		SELECT license FROM licenses
+			WHERE id = %s 
+	""";
+	g.cur.execute(query, [license_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["license"];
+
+def get_license_date_of_issue(license_id):
+	query = """
+		SELECT date_of_issue FROM licenses
+			WHERE id = %s 
+	""";
+	g.cur.execute(query, [license_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["date_of_issue"];
+
 """
 Checks for collision in amount unit names
 """
-def check_for_collision_in_names(amount_unit):
+def check_for_collision_in_amount_unit(amount_unit):
 	query = "SELECT name_ru FROM amount_units WHERE name_ru = %s";
 	g.cur.execute(query, [amount_unit]);
+	rows = g.cur.fetchall();
+	return len(rows) > 0;
+
+def check_for_collision_in_license(license, license_id):
+	query = "SELECT * FROM licenses WHERE license = %s AND id <> %s";
+	g.cur.execute(query, [license, license_id]);
+	rows = g.cur.fetchall();
+	return len(rows) > 0;
+
+def check_for_collision_in_license_on_addition(license):
+	query = "SELECT * FROM licenses WHERE license = %s";
+	g.cur.execute(query, [license]);
 	rows = g.cur.fetchall();
 	return len(rows) > 0;
 
@@ -517,6 +567,16 @@ def get_resource_id_for_company(company_id):
 		return None;
 	return row["resource_id"];	
 
+def get_resource_id_for_license(license_id):
+	query = """
+		SELECT resource_id FROM licenses
+			WHERE id = %s
+	""";
+	g.cur.execute(query, [license_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];	
 """
 Gets resource id for the given mineral
 """
@@ -2661,7 +2721,7 @@ def edit_site():
 		site_id = request.form.get("site_id", None);
 		site = request.form.get("site", None);
 		if not get_site(site_id):
-			return make_response(redirect(url_for("companies")));
+			return make_response(redirect(url_for("licenses")));
 		resource_id = get_resource_id_for_site(site_id);
 		#Make regular expression here
 		if not site or site == "":
@@ -2695,6 +2755,162 @@ def licenses():
 				licenses = licenses,
 				token = get_hash(request.cookies.get("token", None))
 				));
+
+@app.route("/delete_license/", methods=["GET"])
+def delete_license():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		license_id = request.args.get("license_id", None);
+		query = """
+			DELETE FROM resources 
+				WHERE id = (SELECT resource_id FROM licenses WHERE id = %s)
+		""";
+		g.cur.execute(query, [license_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("licenses")));
+
+@app.route("/edit_license/", methods=["GET", "POST"])
+def edit_license():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		license_id = request.args.get("license_id", None);
+		# License cannot be empty string
+		if get_license(license_id) == None:
+			return make_response(redirect(url_for("licenses")));
+		resource_id = get_resource_id_for_license(license_id);
+		return render_template("edit_license.html", 
+			license_id = license_id,
+			license = get_license(license_id),
+			date_of_issue = get_license_date_of_issue(license_id),
+			permissions = get_permissions(resource_id), 
+			error = None);
+	elif request.method == "POST":
+		license_id = request.form.get("license_id", None);
+		license = request.form.get("license", None);
+		date_of_issue = request.form.get("date_of_issue", None);
+		# License cannot be empty string
+		if get_license(license_id) == None:
+			return make_response(redirect(url_for("licenses")));
+		resource_id = get_resource_id_for_license(license_id);
+		if not re.match("^[0-9]{2,4}-[0-9]{2}-[0-9]{2}$", date_of_issue):
+			return render_template("edit_license.html", 
+				license_id = license_id,
+				license = get_license(license_id),
+				date_of_issue = get_license_date_of_issue(license_id),
+				permissions = get_permissions(resource_id), 
+				error = u"Неверная дата выдачи лицензии");
+		try:
+			date_of_issue = datetime.strptime(date_of_issue, "%Y-%m-%d");
+		except:
+			return render_template("edit_license.html", 
+				license_id = license_id,
+				license = get_license(license_id),
+				date_of_issue = get_license_date_of_issue(license_id),
+				permissions = get_permissions(resource_id), 
+				error = u"Неверная дата выдачи лицензии");
+		if not re.match("^[A-Z]{2}\\s[A-Z]{1}\\s[0-9]{4}\\s[A-Z]{1}[0-9]{1}$", license):
+			return render_template("edit_license.html", 
+				license_id = license_id,
+				license = get_license(license_id),
+				date_of_issue = get_license_date_of_issue(license_id),
+				permissions = get_permissions(resource_id), 
+				error = u"Неверный номер лицензии");
+		if check_for_collision_in_license(license, license_id):
+			return render_template("edit_license.html", 
+				license_id = license_id,
+				license = get_license(license_id),
+				date_of_issue = get_license_date_of_issue(license_id),
+				permissions = get_permissions(resource_id), 
+				error = u"Данная лицензия уже существует в базе");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		update_read_permissions(permitted_roles, resource_id);
+		query = """
+			UPDATE licenses SET license = %s, date_of_issue = %s
+				WHERE id = %s
+		""";
+		g.cur.execute(query, [license, date_of_issue, license_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("licenses")));
+
+@app.route("/get_companies_ajax/", methods=["GET"])
+def get_companies_ajax():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return jsonify({});
+	if not is_valid_session(request.cookies.get("token", None)):
+		return jsonify({});
+	if not is_admin(request.cookies.get("token", None)):
+		return jsonify({});
+	if request.method == "GET":
+		partial_company_name = request.args.get("partial_company_name", "");
+
+		return jsonify(get_companies(partial_company_name));
+	else:
+		return jsonify({});
+
+@app.route("/add_license/", methods=["GET", "POST"])
+def add_license():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return render_template("add_license.html", 
+			permissions = get_default_permissions(),
+			error = None);
+	elif request.method == "POST":
+		company_id = request.form.get("company_id", None);
+		license = request.form.get("license", None);
+		date_of_issue = request.form.get("date_of_issue", None);
+		if not re.match("^[0-9]{2,4}-[0-9]{2}-[0-9]{2}$", date_of_issue):
+			return render_template("add_license.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверная дата выдачи лицензии");
+		try:
+			date_of_issue = datetime.strptime(date_of_issue, "%Y-%m-%d");
+		except:
+			return render_template("add_license.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверная дата выдачи лицензии");
+		if not re.match("^[A-Z]{2}\\s[A-Z]{1}\\s[0-9]{4}\\s[A-Z]{1}[0-9]{1}$", license):
+			return render_template("add_license.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверный номер лицензии");
+		if check_for_collision_in_license_on_addition(license):
+			return render_template("add_license.html", 
+				permissions = get_default_permissions(), 
+				error = u"Данная лицензия уже существует в базе");
+		if not get_company(company_id):
+			return render_template("add_license.html", 
+				permissions = get_default_permissions(), 
+				error = u"Данная организация не существует в базе данных");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			INSERT INTO licenses(license, date_of_issue, company_id, resource_id)
+			VALUES(
+				%s, %s, %s,
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [license, date_of_issue, company_id, uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("licenses")));
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");
