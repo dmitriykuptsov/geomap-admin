@@ -20,7 +20,6 @@ import traceback
 from config import config
 from tokens import Token
 from utils import Utils
-from datetime import datetime
 
 app = Flask(__name__);
 #CORS(app);
@@ -2810,7 +2809,7 @@ def edit_license():
 				permissions = get_permissions(resource_id), 
 				error = u"Неверная дата выдачи лицензии");
 		try:
-			date_of_issue = datetime.strptime(date_of_issue, "%Y-%m-%d");
+			date_of_issue = datetime.datetime.strptime(date_of_issue, "%Y-%m-%d");
 		except:
 			return render_template("edit_license.html", 
 				license_id = license_id,
@@ -2879,7 +2878,7 @@ def add_license():
 				permissions = get_default_permissions(), 
 				error = u"Неверная дата выдачи лицензии");
 		try:
-			date_of_issue = datetime.strptime(date_of_issue, "%Y-%m-%d");
+			date_of_issue = datetime.datetime.strptime(date_of_issue, "%Y-%m-%d");
 		except:
 			return render_template("add_license.html", 
 				permissions = get_default_permissions(), 
