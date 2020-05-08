@@ -299,6 +299,20 @@ def get_companies(partial_company_name):
 			"name": row["name_ru"]
 			});		
 	return companies;
+
+def get_deposits():
+	query = """
+		SELECT d.id, d.name_ru FROM deposits d ORDER BY name_ru ASC
+	""";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	deposits = [];
+	for row in rows:
+		deposits.append({
+			"deposit_id": row["id"],
+			"name": row["name_ru"]
+			});
+	return deposits;
 """
 Returns area
 """
@@ -2708,7 +2722,7 @@ def edit_site():
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
 		site_id = request.args.get("site_id", None);
-		if not get_site(site_id):
+		if not get_site(site_id) == None:
 			return make_response(redirect(url_for("sites")));
 		resource_id = get_resource_id_for_site(site_id);
 		return render_template("edit_site.html", 
@@ -2845,17 +2859,16 @@ def edit_license():
 @app.route("/get_companies_ajax/", methods=["GET"])
 def get_companies_ajax():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
-		return jsonify({});
+		return jsonify([]);
 	if not is_valid_session(request.cookies.get("token", None)):
-		return jsonify({});
+		return jsonify([]);
 	if not is_admin(request.cookies.get("token", None)):
-		return jsonify({});
+		return jsonify([]);
 	if request.method == "GET":
 		partial_company_name = request.args.get("partial_company_name", "");
-
 		return jsonify(get_companies(partial_company_name));
 	else:
-		return jsonify({});
+		return jsonify([]);
 
 @app.route("/add_license/", methods=["GET", "POST"])
 def add_license():
@@ -2889,7 +2902,7 @@ def add_license():
 				error = u"Неверный номер лицензии");
 		if check_for_collision_in_license_on_addition(license):
 			return render_template("add_license.html", 
-				permissions = get_default_permissions(), 
+				permissions = get_default_permissions(),
 				error = u"Данная лицензия уже существует в базе");
 		if not get_company(company_id):
 			return render_template("add_license.html", 
@@ -2910,6 +2923,41 @@ def add_license():
 		g.cur.execute(query, [license, date_of_issue, company_id, uuid]);
 		g.db.commit();
 		return make_response(redirect(url_for("licenses")));
+
+@app.route("/deposits/", methods=["GET"])
+def deposits():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposits = get_deposits();
+		return make_response(render_template("deposits.html", 
+				deposits = deposits,
+				token = get_hash(request.cookies.get("token", None))
+				));
+
+
+@app.route("/delete_deposit/", methods=["GET"])
+def delete_deposit():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposit_id = request.args.get("deposit_id", None);
+		query = """
+			DELETE FROM resources 
+				WHERE id = (SELECT resource_id FROM deposits WHERE id = %s)
+		""";
+		g.cur.execute(query, [deposit_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits")));
+
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");

@@ -7,7 +7,7 @@ config = {
 	"FROM_EMAIL": "dmitriy.kuptsov@gmail.com",
 	"TO_EMAIL": "dmitriy.kuptsov@gmail.com",
 	"MAX_SESSION_DURATION_IN_SECONDS": 12*60*60,
-	"PASSWORD_SALT": "gligoofDapt6",
+	"PASSWORD_SALT": "modhodBiew9",
 	"DB_USER": "root",
 	"DB_PASSWORD": "root",
 	"DB": "geomap",
