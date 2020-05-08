@@ -458,6 +458,17 @@ def get_site(site_id):
 		return None;
 	return row["name_ru"];
 
+def get_deposit(deposit_id):
+	query = """
+		SELECT name_ru FROM deposits
+			WHERE id = %s
+	"""
+	g.cur.execute(query, [deposit_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["name_ru"];	
+
 def get_license(license_id):
 	query = """
 		SELECT license FROM licenses
@@ -517,6 +528,14 @@ def check_for_collision_in_site(site):
 	rows = g.cur.fetchall();
 	return len(rows) > 0;
 
+def check_for_collision_in_deposit(deposit):
+	if not deposit or deposit == "":
+		return True;
+	query = "SELECT id FROM deposits WHERE name_ru LIKE %s";
+	g.cur.execute(query, [deposit]);
+	rows = g.cur.fetchall();
+	return len(rows) > 0;
+
 def check_for_collision_in_depsoit_status(deposit_status):
 	if not deposit_status or deposit_status == "":
 		return True;
@@ -553,6 +572,17 @@ def get_resource_id_for_site(site_id):
 			WHERE id = %s
 	""";
 	g.cur.execute(query, [site_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];
+
+def get_resource_id_for_deposit(deposit_id):
+	query = """
+		SELECT resource_id FROM deposits
+			WHERE id = %s
+	""";
+	g.cur.execute(query, [deposit_id]);
 	row = g.cur.fetchone();
 	if not row:
 		return None;
@@ -2958,6 +2988,87 @@ def delete_deposit():
 		g.db.commit();
 		return make_response(redirect(url_for("deposits")));
 
+
+@app.route("/add_deposit/", methods=["GET", "POST"])
+def add_deposit():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return render_template("add_deposit.html", 
+			permissions = get_default_permissions(), 
+			error = None);
+	elif request.method == "POST":
+		deposit = request.form.get("deposit", None);
+		#Make regular expression here
+		if not deposit or deposit == "":
+			return render_template("add_deposit.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверное наименование для месторождения");
+		if check_for_collision_in_deposit(deposit):
+			return render_template("add_deposit.html", 
+				permissions = get_default_permissions(), 
+				error = u"Данное месторождение уже существует в базе");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			INSERT INTO deposits(name_en, name_ru, name_uz, resource_id)
+			VALUES(
+				"", %s, "",
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [deposit, uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits")));
+
+@app.route("/edit_deposit/", methods=["GET", "POST"])
+def edit_deposit():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":	
+		deposit_id = request.args.get("deposit_id", None);
+		if get_deposit(deposit_id) == None:
+			return make_response(redirect(url_for("deposits")));
+		resource_id = get_resource_id_for_deposit(deposit_id);
+		return render_template("edit_deposit.html", 
+			deposit_id = deposit_id,
+			deposit = get_deposit(deposit_id),
+			permissions = get_permissions(resource_id), 
+			error = None);
+	elif request.method == "POST":
+		deposit_id = request.form.get("deposit_id", None);
+		deposit = request.form.get("deposit", None);
+		if not get_deposit(deposit_id):
+			return make_response(redirect(url_for("deposits")));
+		resource_id = get_resource_id_for_deposit(deposit_id);
+		#Make regular expression here
+		if not deposit or deposit == "":
+			return render_template("edit_deposit.html", 
+				deposit_id = deposit_id,
+				deposit = get_deposit(deposit_id),
+				permissions = get_permissions(resource_id),
+				error = u"Неверное наименование для месторождения");
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		update_read_permissions(permitted_roles, resource_id);
+		query = """
+			UPDATE deposits SET name_ru = %s
+				WHERE id = %s
+		""";
+		g.cur.execute(query, [deposit, deposit_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits")));
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru-RU">
+	<head>
+		<title>Административная страница</title>
+		<meta charset="utf-8" /> 
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+		<script src="{{ url_for('static', filename='js/jquery-3.5.0.min.js') }}"></script>
+		<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+		<style>
+			.header {
+				position: relative;
+				top: 0;
+				left: 0;
+				height: 50px;
+				width: calc(100%);
+				background-color: #6f6f6f;
+				margin-bottom: 20px;
+			}
+
+			.logout {
+				position: absolute;
+				top: 20px;
+				right: 20px;
+			}
+			.active {
+				background: #9f9f9f;
+			}
+			.title {
+				position: absolute;
+				left: 20px;
+				top: 20px;
+				font-weight: bold;
+				color: #007bff;
+				font-size: 12pt;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="header">
+			<div class="title">Система администрирования базы данных</div>
+			<a href="/logout/" class="logout">Выйти</a>
+		</div>
+		<div class="container">
+			<div class="row">
+				<div class="col-sm-3">
+					<table class="table">
+						<tbody>
+							<tr>
+								<td><a href="/areas/">Районы</a></td>
+							</tr>
+							<tr>
+								<td><a href="/amount_units/">Единицы измерения</a></td>
+							</tr>
+							<tr>
+								<td><a href="/deposit_kinds/">Виды</a></td>
+							</tr>
+							<tr>
+								<td><a href="/deposit_groups/">Группы</a></td>
+							</tr>
+							<tr>
+								<td><a href="/deposit_types/">Типы</a></td>
+							</tr>
+							<tr>
+								<td><a href="/deposit_subtypes/">Подтипы</a></td>
+							</tr>
+							<tr>
+								<td><a href="/minerals/">Полезные ископаемые</a></td>
+							</tr>
+							<tr>
+								<td><a href="/deposit_statuses/">Статусы</a></td>
+							</tr>
+							<tr>
+								<td><a href="/companies/">Организации</a></td>
+							</tr>
+							<tr class="active">
+								<td><a href="/sites/">Участки</a></td>
+							</tr>
+							<tr>
+								<td><a href="/licenses/">Лицензии</a></td>
+							</tr>
+							<tr>
+								<td><a href="/deposits/">Месторождения</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Сводная таблица: месторождения и участки</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Сводная таблица: месторождения, участки и лицензии</a></td>
+							</tr>
+							<!-- tr>
+								<td><a href="#">Контур участка</a></td>
+							</tr>
+							<tr>
+								<td><a href="#">Контур залицензированного участка</a></td>
+							</tr -->
+						</tbody>
+					</table>
+				</div>
+				<div class="col-sm-9">
+					<form action="/add_deposit/" method="post">
+						<div class="form-group">
+							<input type="text" name="deposit" 
+								class="form-control" 
+								placeholder="Введите название месторождения">
+						</div>
+						<div class="form-group">
+							<span>Разрешение на чтение</span>
+						</div>
+						{% for permission in permissions %}
+							{% if permission["granted"] %}
+								<div class="form-group">
+									<input type="checkbox" 
+										checked 
+										name="{{permission["role"]}}">
+								{{permission["role"]}}
+								</div>
+							{% else %}
+								<div class="form-group">
+									<input type="checkbox" 
+									name="{{permission["role"]}}">{{permission["role"]}}
+								</div>
+							{% endif %}
+						{% endfor %}
+						<div class="form-group">
+							<button type="submit" class="btn btn-primary form-control">Сохранить</button>
+						</div>
+						{% if error %}
+							<div class="form-group">
+								<div class="alert alert-danger" role="alert">
+									<span>{{ error }}</span>
+								</div>
+							</div>
+						{% endif %}
+					</form>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
