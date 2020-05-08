@@ -36,11 +36,94 @@
 				color: #007bff;
 				font-size: 12pt;
 			}
+			.dropdown {
+				display: none;
+				width: 100%;
+				max-height: 200px;
+				overflow-y: scroll;
+				float: right;
+				position: absolute;
+				z-index: 1000;
+				background-color: white;
+			}
 		</style>
 		<script type="text/javascript">
 			$(document).ready(function() {
-				$("#date_of_issue").datepicker({"format": "yyyy-mm-dd"});
+				$("#site").keyup(function() {
+					if ($("#site").val() == "") {
+						$("#sites").hide();
+					} else {
+						$("#sites").show();
+					}
+					get_sites();
+				});
+
+				$("#deposit").keyup(function() {
+					if ($("#deposit").val() == "") {
+						$("#deposits").hide();
+					} else {
+						$("#deposits").show();
+					}
+					get_deposits();
+				});
+
+				$('#plan_selector').click(function(e) {
+					$('#plan').click();
+					e.preventDefault();
+					return false;
+				});
+
+				$('#cut_selector').click(function(e) {
+					$('#cut').click();
+					e.preventDefault();
+					return false;
+				});
 			});
+
+			function set_deposit_id(id, val) {
+				$("#deposit_id").val(id);
+				$("#deposit").val(val);
+				$("#deposits").hide();
+			}
+
+			function get_deposits() {
+				var partial_deposit_name = $("#deposit").val();
+				$.get("{{ url_for('get_deposits_ajax') }}?partial_deposit_name=" + partial_deposit_name, function(data) {
+					var html = "<lu>";
+					for (idx in data) {
+						var item = data[idx];
+						html += "<li>" + 
+							"<a href='#' onclick='set_deposit_id(" + item["id"] + ", \"" + item["name"].replace(/\"/g, "\\\"") + "\")'>" +
+								item["name"] + 
+							"</a></li>";
+					}
+					html += "</lu>";
+					$("#deposits").html(html);
+				});
+				
+			}
+
+			function set_site_id(id, val) {
+				$("#site_id").val(id);
+				$("#site").val(val);
+				$("#sites").hide();
+			}
+
+			function get_sites() {
+				var partial_site_name = $("#site").val();
+				$.get("{{ url_for('get_sites_ajax') }}?partial_site_name=" + partial_site_name, function(data) {
+					var html = "<lu>";
+					for (idx in data) {
+						var item = data[idx];
+						html += "<li>" + 
+							"<a href='#' onclick='set_site_id(" + item["id"] + ", \"" + item["name"].replace(/\"/g, "\\\"") + "\")'>" +
+								item["name"] + 
+							"</a></li>";
+					}
+					html += "</lu>";
+					$("#sites").html(html);
+				});
+			}
 		</script>
 	</head>
 	<body>
@@ -83,13 +166,13 @@
 							<tr>
 								<td><a href="/sites/">Участки</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/licenses/">Лицензии</a></td>
 							</tr>
 							<tr>
 								<td><a href="/deposits/">Месторождения</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/deposits_sites/">Сводная таблица: месторождения и участки</a></td>
 							</tr>
 							<tr>
@@ -105,19 +188,67 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/edit_license/" method="post">
+					<form action="/add_deposit_site/" method="post">
 						<div class="form-group">
-							<input type="hidden" name="license_id" value="{{license_id}}">
+							<span 
+							<input type="hidden" name="deposit_id" id="deposit_id">
 						</div>
 						<div class="form-group">
-							<input type="text" name="license" 
+							<input type="hidden" name="site_id" id="site_id">
+						</div>
+						<div class="form-group">
+							<input type="text" name="deposit" 
+								id="deposit"
 								class="form-control" 
-								placeholder="Введите номер лицензии"
-								value="{{license}}">
+								autocomplete="off"
+								placeholder="Введите название месторождения">
+							<div id="deposits" class="dropdown"></div>
 						</div>
-						 <div class="form-group" >
-		                    <input type="text" class="form-control" name="date_of_issue" id="date_of_issue" value="{{date_of_issue}}"/>
-		                </div>
+						<div class="form-group">
+							<input type="text" 
+								class="form-control" 
+								name="site" 
+								id="site" 
+								autocomplete="off"
+								placeholder="Введите название участка">
+							<div id="sites" class="dropdown"></div>
+						</div>
+						<div class="form-group">
+							<input type="text" 
+								class="form-control" 
+								name="lat" 
+								id="lat" 
+								placeholder="Широта">
+						</div>
+						<div class="form-group">
+							<input type="text" 
+								class="form-control" 
+								name="lon" 
+								id="lon" 
+								placeholder="Долгота">
+						</div>
+						<div class="form-group">
+							<button class="btn btn-primary form-control"
+								id="plan_selector"
+								>Выбрать изображение (план)</button>
+							<input type="file" 
+								accept=".png, .jpg, .jpeg"
+								style="display:none"
+								class="form-control" 
+								name="plan" 
+								id="plan" 
+								placeholder="Выберите изображение (план)">
+						</div>
+						<div class="form-group">
+							<button class="btn btn-primary form-control" id="cut_selector">Выбрать изображение (разрез)</button>
+							<input type="file" 
+								accept=".png, .jpg, .jpeg"
+								style="display:none"
+								class="form-control" 
+								name="cut" 
+								id="cut" 
+								placeholder="Выберите изображение (разрез)">
+						</div>
 						<div class="form-group">
 							<span>Разрешение на чтение</span>
 						</div>

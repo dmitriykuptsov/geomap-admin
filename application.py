@@ -20,6 +20,7 @@ import traceback
 from config import config
 from tokens import Token
 from utils import Utils
+from werkzeug._compat import BytesIO
 
 app = Flask(__name__);
 #CORS(app);
@@ -300,6 +301,40 @@ def get_companies(partial_company_name):
 			});		
 	return companies;
 
+def get_deposits_by_name(partial_deposit_name):
+	partial_deposit_name = "%" + partial_deposit_name + "%";
+	query = """
+		SELECT id, name_ru FROM deposits
+			WHERE UPPER(name_ru) LIKE UPPER(%s)
+				ORDER BY name_ru ASC
+	"""
+	g.cur.execute(query, [partial_deposit_name]);
+	rows = g.cur.fetchall();
+	deposits = [];
+	for row in rows:
+		deposits.append({
+			"id": row["id"],
+			"name": row["name_ru"]
+			});		
+	return deposits;
+
+def get_sites_by_name(partial_site_name):
+	partial_site_name = "%" + partial_site_name + "%";
+	query = """
+		SELECT id, name_ru FROM sites
+			WHERE UPPER(name_ru) LIKE UPPER(%s)
+				ORDER BY name_ru ASC
+	"""
+	g.cur.execute(query, [partial_site_name]);
+	rows = g.cur.fetchall();
+	sites = [];
+	for row in rows:
+		sites.append({
+			"id": row["id"],
+			"name": row["name_ru"]
+			});		
+	return sites;
+
 def get_deposits():
 	query = """
 		SELECT d.id, d.name_ru FROM deposits d ORDER BY name_ru ASC
@@ -313,6 +348,27 @@ def get_deposits():
 			"name": row["name_ru"]
 			});
 	return deposits;
+
+def get_deposits_sites():
+	query = """
+		SELECT ds.id, d.name_ru AS deposit_name, s.name_ru AS site_name
+			FROM deposits_sites ds 
+				INNER JOIN deposits d ON d.id = ds.deposit_id
+				INNER JOIN sites s ON s.id = ds.site_id 
+					ORDER BY d.name_ru ASC
+	""";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	deposits_sites = [];
+	for row in rows:
+		deposits_sites.append({
+			"deposit_site_id": row["id"],
+			"deposit_name": row["deposit_name"],
+			"site_name": row["site_name"]
+			});
+	return deposits_sites;
+
+
 """
 Returns area
 """
@@ -2329,6 +2385,7 @@ def add_mineral():
 			return make_response(redirect(url_for("minerals")));
 		mineral = request.form.get("mineral", None);
 		if check_for_collision_in_mineral(mineral):
+			amount_units = get_amount_units();
 			return make_response(render_template("add_mineral.html", 
 				amount_units = amount_units, 
 				permissions = get_default_permissions(), 
@@ -3067,6 +3124,134 @@ def edit_deposit():
 				WHERE id = %s
 		""";
 		g.cur.execute(query, [deposit, deposit_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits")));
+
+@app.route("/deposits_sites/", methods=["GET"])
+def deposits_sites():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposits_sites = get_deposits_sites();
+		return make_response(render_template("deposits_sites.html", 
+				deposits_sites = deposits_sites,
+				token = get_hash(request.cookies.get("token", None))
+				));
+
+
+@app.route("/delete_deposit_site/", methods=["GET"])
+def delete_deposit_site():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposit_site_id = request.args.get("deposit_site_id", None);
+		query = """
+			DELETE FROM resources 
+				WHERE id = (SELECT resource_id FROM deposits_sites WHERE id = %s)
+		""";
+		g.cur.execute(query, [deposit_site_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits_sites")));
+
+@app.route("/get_deposits_ajax/", methods=["GET"])
+def get_deposits_ajax():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return jsonify([]);
+	if not is_valid_session(request.cookies.get("token", None)):
+		return jsonify([]);
+	if not is_admin(request.cookies.get("token", None)):
+		return jsonify([]);
+	if request.method == "GET":
+		partial_deposit_name = request.args.get("partial_deposit_name", "");
+		return jsonify(get_deposits_by_name(partial_deposit_name));
+	else:
+		return jsonify([]);
+
+@app.route("/get_sites_ajax/", methods=["GET"])
+def get_sites_ajax():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return jsonify([]);
+	if not is_valid_session(request.cookies.get("token", None)):
+		return jsonify([]);
+	if not is_admin(request.cookies.get("token", None)):
+		return jsonify([]);
+	if request.method == "GET":
+		partial_site_name = request.args.get("partial_site_name", "");
+		return jsonify(get_sites_by_name(partial_site_name));
+	else:
+		return jsonify([]);
+
+@app.route("/add_deposit_site/", methods=["GET", "POST"])
+def add_deposit_site():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return render_template("add_deposit_site.html", 
+			permissions = get_default_permissions(), 
+			error = None);
+	elif request.method == "POST":
+		deposit_id = request.form.get("deposit_id", None);
+		site_id = request.form.get("site_id", None);
+		lat = request.form.get("lat", None);
+		lon = request.form.get("lon", None);
+		image_cut = request.files.get("cut");
+		image_plan = request.files.get("plan");
+		
+
+		query = """
+			SELECT * FROM deposits_sites WHERE deposit_id = %s AND site_id = %s
+		""";
+		g.cur.execute(query, [deposit_id, site_id]);
+		rows = g.cur.fetchall();
+		if len(rows) > 0:
+			return render_template("add_deposit_site.html", 
+				permissions = get_default_permissions(), 
+				error = "Месторождение с данным участком уже существует в базе");
+
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			INSERT INTO images(name, data, resource_id)
+			VALUES(%s, %s, (SELECT id FROM resources WHERE name = %s));
+			""";
+		g.cur.execute(query, [image_cut.filename, base64.b64encode(image_cut.read), uuid]);
+
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			INSERT INTO images(name, data, resource_id)
+			VALUES(%s, %s, (SELECT id FROM resources WHERE name = %s));
+			""";
+		g.cur.execute(query, [image_plan.filename, base64.b64encode(image_plan.read), uuid]);
+		
+		
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+		query = """
+			INSERT INTO deposits_sites(name_en, name_ru, name_uz, resource_id)
+			VALUES(
+				"", %s, "",
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [deposit_id, site_id, uuid]);
 		g.db.commit();
 		return make_response(redirect(url_for("deposits")));
 
