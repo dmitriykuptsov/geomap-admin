@@ -3271,6 +3271,32 @@ def add_deposit_site():
 				areas = areas,
 				error = u"Данная пара месторождение/участок уже существуют в базе");
 
+		if not deposit_id:
+			regions = get_regions();
+			if len(regions) == 0:
+				areas = []
+			else:
+				region_id = regions[0]["region_id"];
+				areas = get_areas(region_id);
+			return render_template("add_deposit_site.html", 
+				permissions = get_default_permissions(), 
+				regions = regions,
+				areas = areas,
+				error = u"Неверное значение для месторождения");
+
+		if not site_id:
+			regions = get_regions();
+			if len(regions) == 0:
+				areas = []
+			else:
+				region_id = regions[0]["region_id"];
+				areas = get_areas(region_id);
+			return render_template("add_deposit_site.html", 
+				permissions = get_default_permissions(), 
+				regions = regions,
+				areas = areas,
+				error = u"Неверное значение для участка");
+
 		region_id = request.form.get("region_id", None);
 		area_id = request.form.get("area_id", None);
 
