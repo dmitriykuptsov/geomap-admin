@@ -92,7 +92,7 @@
 							<tr>
 								<td><a href="/deposit_kinds/">Виды</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposit_groups/">Группы</a></td>
 							</tr>
 							<tr>
@@ -122,48 +122,47 @@
 							<tr>
 								<td><a href="/deposits_sites/">Сводная таблица: месторождения и участки</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/deposits_sites_types/">Сводная таблица: месторождения, участки и сырьё</a></td>
 							</tr>
 							<tr>
 								<td><a href="#">Сводная таблица: месторождения, участки и лицензии</a></td>
 							</tr>
-							<!-- tr>
-								<td><a href="#">Контур участка</a></td>
-							</tr>
-							<tr>
-								<td><a href="#">Контур залицензированного участка</a></td>
-							</tr -->
 						</tbody>
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/deposit_groups/" method="get" onchange="this.submit()">
+					<form action="/deposits_sites/" method="get">
 						<div class="form-group">
-							<a href="/add_deposit_group/">Добавить</a>
-						</div>
-						<div class="form-group">
-							<select name="deposit_kind_id" class="form-control">
-								{% for deposit_kind in deposit_kinds %}
-								<option value="{{ deposit_kind.kind_id }}">{{ deposit_kind.name }}</option>
-								{% endfor %} 
-							</select>
+							<a href="/add_deposit_site/">Добавить</a><br/>
 						</div>
 						<div class="form-group">
 							<table class="table" id="dt">
 								<thead class="thead-dark">
 									<tr>
-										<th>Группа</th>
+										<th>Месторождение</th>
+										<th>Участок</th>
+										<th>Вид сырья</th>
+										<th>Группа сырья</th>
+										<th>Тип сырья</th>
+										<th>Подтип сырья</th>
+										<th>Полезное ископаемое</th>
 										<th>Действие</th>
 									</tr>
 								</thead>
 								<tbody>
-									{% for deposit_group in deposit_groups %}
+									{% for deposit_site_type in deposits_sites_types %}
 									<tr>
-										<td>{{ deposit_group.name }}</td>
+										<td>{{ deposit_site_type.deposit_name }}</td>
+										<td>{{ deposit_site_type.site_name }}</td>
+										<td>{{ deposit_site_type.kind_name }}</td>
+										<td>{{ deposit_site_type.group_name }}</td>
+										<td>{{ deposit_site_type.type_name }}</td>
+										<td>{{ deposit_site_type.subtype_name }}</td>
+										<td>{{ deposit_site_type.mineral }}</td>
 										<td>
-											<a href="/delete_deposit_group?kind_id={{ deposit_group.kind_id }}&group_id={{ deposit_group.group_id }}&token={{token}}">Удалить</a>
-											<a href="/edit_deposit_group?kind_id={{ deposit_group.kind_id }}&group_id={{ deposit_group.group_id }}">Редактировать</a>
+											<a href="/delete_deposit_site_type?deposit_site_type_id={{ deposit_site_type.deposit_site_type_id }}&token={{token}}">Удалить</a>
+											<a href="/edit_deposit_site_type?deposit_site_type_id={{ deposit_site_type.deposit_site_type_id }}">Редактировать</a>
 										</td>
 									</tr>
 									{% endfor %}

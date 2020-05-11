@@ -369,6 +369,48 @@ def get_deposits_sites():
 			});
 	return deposits_sites;
 
+def get_deposits_sites_types():
+	query = """
+	SELECT dst.id, d.name_ru AS deposit_name, s.name_ru AS site_name, 
+		(SELECT dtdt.name_ru FROM deposit_types dtdt WHERE dtdt.kind_id = 
+			(SELECT dtdtdt.kind_id FROM deposit_types dtdtdt WHERE dtdtdt.id=dst.type_group_id) 
+			AND dtdt.group_id = 0 AND dtdt.type_id=0 AND dtdt.subtype_id=0) AS kind_name, 
+		(SELECT dtdt.name_ru FROM deposit_types dtdt WHERE dtdt.kind_id = 
+			(SELECT dtdtdt.kind_id FROM deposit_types dtdtdt WHERE dtdtdt.id=dst.type_group_id) 
+			AND dtdt.group_id = (SELECT dtdtdt.group_id FROM deposit_types AS dtdtdt WHERE dtdtdt.id=dst.type_group_id) 
+			AND dtdt.type_id=0 AND dtdt.subtype_id=0) AS group_name, 
+		(SELECT dtdt.name_ru FROM deposit_types dtdt WHERE dtdt.kind_id = 
+			(SELECT dtdtdt.kind_id FROM deposit_types dtdtdt WHERE dtdtdt.id=dst.type_group_id) 
+			AND dtdt.group_id = (SELECT dtdtdt.group_id FROM deposit_types AS dtdtdt WHERE dtdtdt.id=dst.type_group_id) 
+			AND dtdt.type_id = (SELECT dtdtdt.type_id FROM deposit_types AS dtdtdt WHERE dtdtdt.id=dst.type_group_id) 
+			AND dtdt.subtype_id=0) AS type_name,
+		(SELECT dtdt.name_ru FROM deposit_types dtdt WHERE dtdt.kind_id = 
+			(SELECT dtdtdt.kind_id FROM deposit_types dtdtdt WHERE dtdtdt.id=dst.type_group_id) 
+			AND dtdt.group_id = (SELECT dtdtdt.group_id FROM deposit_types AS dtdtdt WHERE dtdtdt.id=dst.type_group_id) 
+			AND dtdt.type_id = (SELECT dtdtdt.type_id FROM deposit_types AS dtdtdt WHERE dtdtdt.id=dst.type_group_id) 
+			AND dtdt.subtype_id=(SELECT dtdtdt.subtype_id FROM deposit_types AS dtdtdt WHERE dtdtdt.id=dst.type_group_id)) AS subtype_name,
+		m.name_ru AS mineral
+		FROM deposits_sites_types dst 
+		INNER JOIN deposits_sites ds ON dst.deposit_site_id = ds.id 
+		INNER JOIN deposits d ON d.id=ds.deposit_id 
+		INNER JOIN sites s ON s.id = ds.site_id 
+		INNER JOIN minerals m ON m.id = dst.minerals_id;
+	"""
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	deposits_sites_types = [];
+	for row in rows:
+		deposits_sites_types.append({
+			"deposit_site_type_id": row["id"],
+			"deposit_name": row["deposit_name"],
+			"site_name": row["site_name"],
+			"kind_name": row["kind_name"],
+			"group_name": row["group_name"],
+			"type_name": row["type_name"],
+			"subtype_name": row["subtype_name"],
+			"mineral": row["mineral"]
+			});
+	return deposits_sites_types;
 
 """
 Returns area
@@ -3491,6 +3533,40 @@ def edit_deposit_site():
 		g.cur.execute(query, [lat, lon, deposit_site_id]);
 		g.db.commit();
 		return make_response(redirect(url_for("deposits_sites")));
+
+@app.route("/deposits_sites_types/", methods=["GET"])
+def deposits_sites_types():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		dst = get_deposits_sites_types();
+		return make_response(render_template("deposits_sites_types.html", 
+				deposits_sites_types = dst,
+				token = get_hash(request.cookies.get("token", None))
+				));
+
+
+@app.route("/delete_deposit_site_type/", methods=["GET"])
+def delete_deposit_site_type():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposit_site_type_id = request.args.get("deposit_site_type_id", None);
+		query = """
+			DELETE FROM resources 
+				WHERE id = (SELECT resource_id FROM deposits_sites_types WHERE id = %s)
+		""";
+		g.cur.execute(query, [deposit_site_type_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits_sites_types")));
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");
