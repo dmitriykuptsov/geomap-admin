@@ -124,6 +124,18 @@
 					$("#sites").html(html);
 				});
 			}
+
+			function get_areas(region_id) {
+				$.get("{{ url_for('get_areas_ajax') }}?region_id=" + region_id, function(data) {
+					var html = "";
+					for (idx in data) {
+						var item = data[idx];
+						html += "<option value='" + item["area_id"] +"'>" + item["name"] + "</option>";
+					}
+					$("#area_id").html(html);
+				});
+			}
+
 		</script>
 	</head>
 	<body>
@@ -188,9 +200,26 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/add_deposit_site/" method="post">
+					<form action="/add_deposit_site/" method="post" enctype="multipart/form-data">
 						<div class="form-group">
-							<span 
+							<select name="region_id" id="region_id" 
+									class="form-control" 
+									onchange="get_areas(this.value)">
+								{% for region in regions %}
+								<option value="{{ region.region_id }}">{{ region.name }}</option>
+								{% endfor %} 
+							</select>
+						</div>
+						<div class="form-group">
+							<select name="area_id" 
+									id="area_id" 
+									class="form-control">
+								{% for area in areas %}
+								<option value="{{ area.area_id }}">{{ area.name }}</option>
+								{% endfor %} 
+							</select>
+						</div>
+						<div class="form-group">
 							<input type="hidden" name="deposit_id" id="deposit_id">
 						</div>
 						<div class="form-group">

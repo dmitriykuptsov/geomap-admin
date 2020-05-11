@@ -23,7 +23,8 @@ from utils import Utils
 from werkzeug._compat import BytesIO
 
 app = Flask(__name__);
-#CORS(app);
+
+app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024;
 
 # This is too large but anyways 
 random.seed(os.urandom(64));
@@ -139,7 +140,7 @@ def get_regions():
 	query = """
 		SELECT a.id, a.region_id, a.area_id, a.name_ru 
 			FROM areas a 
-				WHERE a.area_id = 0
+				WHERE a.area_id = 0 ORDER BY a.name_ru ASC
 		""";
 	g.cur.execute(query);
 	rows = g.cur.fetchall();
@@ -525,6 +526,22 @@ def get_deposit(deposit_id):
 		return None;
 	return row["name_ru"];	
 
+def get_areas(region_id):
+	query = """
+		SELECT area_id, region_id, name_ru FROM areas
+			WHERE region_id = %s AND area_id <> 0 ORDER BY name_ru ASC
+	"""
+	g.cur.execute(query, [region_id]);
+	rows = g.cur.fetchall();
+	areas = [];
+	for row in rows:
+		areas.append({
+			"region_id": row["region_id"],
+			"area_id": row["area_id"],
+			"name": row["name_ru"]
+			});
+	return areas;
+
 def get_license(license_id):
 	query = """
 		SELECT license FROM licenses
@@ -639,6 +656,17 @@ def get_resource_id_for_deposit(deposit_id):
 			WHERE id = %s
 	""";
 	g.cur.execute(query, [deposit_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];
+
+def get_resource_id_for_deposit_site(deposit_site_id):
+	query = """
+		SELECT resource_id FROM deposits_sites
+			WHERE id = %s
+	""";
+	g.cur.execute(query, [deposit_site_id]);
 	row = g.cur.fetchone();
 	if not row:
 		return None;
@@ -3189,6 +3217,20 @@ def get_sites_ajax():
 	else:
 		return jsonify([]);
 
+@app.route("/get_areas_ajax/", methods=["GET"])
+def get_areas_ajax():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return jsonify([]);
+	if not is_valid_session(request.cookies.get("token", None)):
+		return jsonify([]);
+	if not is_admin(request.cookies.get("token", None)):
+		return jsonify([]);
+	if request.method == "GET":
+		region_id = request.args.get("region_id", "");
+		return jsonify(get_areas(region_id));
+	else:
+		return jsonify([]);
+
 @app.route("/add_deposit_site/", methods=["GET", "POST"])
 def add_deposit_site():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
@@ -3198,27 +3240,64 @@ def add_deposit_site():
 	if not is_admin(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
+		regions = get_regions();
+		if len(regions) == 0:
+			areas = []
+		else:
+			region_id = regions[0]["region_id"];
+			areas = get_areas(region_id);
 		return render_template("add_deposit_site.html", 
 			permissions = get_default_permissions(), 
+			regions = regions,
+			areas = areas,
 			error = None);
 	elif request.method == "POST":
 		deposit_id = request.form.get("deposit_id", None);
 		site_id = request.form.get("site_id", None);
-		lat = request.form.get("lat", None);
-		lon = request.form.get("lon", None);
-		image_cut = request.files.get("cut");
-		image_plan = request.files.get("plan");
-		
 
-		query = """
-			SELECT * FROM deposits_sites WHERE deposit_id = %s AND site_id = %s
-		""";
+		query = "SELECT id FROM deposits_sites WHERE deposit_id = %s AND site_id = %s";
 		g.cur.execute(query, [deposit_id, site_id]);
 		rows = g.cur.fetchall();
 		if len(rows) > 0:
+			regions = get_regions();
+			if len(regions) == 0:
+				areas = []
+			else:
+				region_id = regions[0]["region_id"];
+				areas = get_areas(region_id);
 			return render_template("add_deposit_site.html", 
 				permissions = get_default_permissions(), 
-				error = "Месторождение с данным участком уже существует в базе");
+				regions = regions,
+				areas = areas,
+				error = u"Данная пара месторождение/участок уже существуют в базе");
+
+		region_id = request.form.get("region_id", None);
+		area_id = request.form.get("area_id", None);
+
+		query = "SELECT id FROM areas WHERE region_id = %s AND area_id = %s";
+		g.cur.execute(query, [region_id, area_id]);
+		row = g.cur.fetchone();
+		if not row:
+			regions = get_regions();
+			if len(regions) == 0:
+				areas = []
+			else:
+				region_id = regions[0]["region_id"];
+				areas = get_areas(region_id);
+			return render_template("add_deposit_site.html", 
+				permissions = get_default_permissions(), 
+				regions = regions,
+				areas = areas,
+				error = u"Задана неверная область или район");
+
+		region_area_id = row["id"];
+
+		lat = request.form.get("lat", None);
+		lon = request.form.get("lon", None);
+
+		image_cut = request.files["cut"];
+		image_plan = request.files["plan"];
+
 
 		roles = get_roles();
 		permitted_roles = get_roles_from_form(request.form, roles);
@@ -3226,34 +3305,166 @@ def add_deposit_site():
 		uuid = get_uuid();
 		add_resource(uuid);
 		add_read_permissions(permitted_roles, uuid);
+
 		query = """
 			INSERT INTO images(name, data, resource_id)
 			VALUES(%s, %s, (SELECT id FROM resources WHERE name = %s));
 			""";
-		g.cur.execute(query, [image_cut.filename, base64.b64encode(image_cut.read), uuid]);
 
+		g.cur.execute(query, [image_cut.filename, base64.b64encode(image_cut.read()), uuid]);
+		image_cut_id = g.cur.lastrowid;
+
+		uuid = get_uuid();
+
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+
+		query = """
+			INSERT INTO images(name, data, resource_id)
+			VALUES(%s, %s, (SELECT id FROM resources WHERE name = %s));
+			""";
+
+		g.cur.execute(query, [image_plan.filename, base64.b64encode(image_plan.read()), uuid]);
+		image_plan_id = g.cur.lastrowid;
+		
 		uuid = get_uuid();
 		add_resource(uuid);
 		add_read_permissions(permitted_roles, uuid);
 		query = """
-			INSERT INTO images(name, data, resource_id)
-			VALUES(%s, %s, (SELECT id FROM resources WHERE name = %s));
-			""";
-		g.cur.execute(query, [image_plan.filename, base64.b64encode(image_plan.read), uuid]);
-		
-		
-		add_resource(uuid);
-		add_read_permissions(permitted_roles, uuid);
-		query = """
-			INSERT INTO deposits_sites(name_en, name_ru, name_uz, resource_id)
+			INSERT INTO deposits_sites(region_area_id, deposit_id, site_id, latitude, longitude, image_cut_id, image_plan_id, resource_id)
 			VALUES(
-				"", %s, "",
+				%s, %s, %s, %s, %s, %s, %s, 
 				(SELECT id FROM resources WHERE name = %s)
 			)
 		""";
-		g.cur.execute(query, [deposit_id, site_id, uuid]);
+		g.cur.execute(query, [region_area_id, deposit_id, site_id, lat, lon, image_cut_id, image_plan_id, uuid]);
 		g.db.commit();
-		return make_response(redirect(url_for("deposits")));
+		return make_response(redirect(url_for("deposits_sites")));
+
+@app.route("/edit_deposit_site/", methods=["GET", "POST"])
+def edit_deposit_site():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposit_site_id = request.args.get("deposit_site_id", None);
+		resource_id = get_resource_id_for_deposit_site(deposit_site_id);
+		query = """
+			SELECT ds.id, d.name_ru AS deposit_name, s.name_ru AS site_name, 
+			(SELECT aa.name_ru AS area_name FROM areas aa WHERE aa.id = ds.region_area_id) AS area_name,
+			(SELECT aa.name_ru AS region_name FROM areas aa WHERE aa.region_id = 
+				(SELECT aaa.region_id FROM areas aaa WHERE aaa.id = ds.region_area_id) AND aa.area_id=0) AS region_name,
+			ds.latitude, ds.longitude
+			FROM deposits_sites ds 
+			INNER JOIN sites s ON s.id = ds.site_id
+			INNER JOIN deposits d ON d.id = ds.deposit_id
+			WHERE ds.id = %s
+		""";
+		g.cur.execute(query, [deposit_site_id]);
+		row = g.cur.fetchone();
+
+		if not row:
+			return make_response(redirect(url_for("deposits_sites")));
+
+		return render_template("edit_deposit_site.html", 
+			permissions = get_permissions(resource_id),
+			region = row["region_name"],
+			area = row["area_name"],
+			site = row["site_name"],
+			deposit = row["deposit_name"],
+			deposit_site_id = row["id"],
+			lat = row["latitude"],
+			lon = row["longitude"],
+			error = None);
+	elif request.method == "POST":
+		deposit_site_id = request.form.get("deposit_site_id", None);
+		lat = request.form.get("lat", None);
+		lon = request.form.get("lon", None);
+
+		try:
+			lat = float(lat);
+		except:
+			lat = -100;
+		try:
+			lon = float(lon);
+		except:
+			lon = - 360;
+
+		if lat < -90.0 or lat > 90.0:
+			resource_id = get_resource_id_for_deposit_site(deposit_site_id);
+			query = """
+				SELECT ds.id, d.name_ru AS deposit_name, s.name_ru AS site_name, 
+				(SELECT aa.name_ru AS area_name FROM areas aa WHERE aa.id = ds.region_area_id) AS area_name,
+				(SELECT aa.name_ru AS region_name FROM areas aa WHERE aa.region_id = 
+					(SELECT aaa.region_id FROM areas aaa WHERE aaa.id = ds.region_area_id) AND aa.area_id=0) AS region_name,
+				ds.latitude, ds.longitude
+				FROM deposits_sites ds 
+				INNER JOIN sites s ON s.id = ds.site_id
+				INNER JOIN deposits d ON d.id = ds.deposit_id
+				WHERE ds.id = %s
+			""";
+			g.cur.execute(query, [deposit_site_id]);
+			row = g.cur.fetchone();
+
+			if not row:
+				return make_response(redirect(url_for("deposits_sites")));
+
+			return render_template("edit_deposit_site.html", 
+				permissions = get_permissions(resource_id),
+				region = row["region_name"],
+				area = row["area_name"],
+				site = row["site_name"],
+				deposit = row["deposit_name"],
+				deposit_site_id = row["id"],
+				lat = row["latitude"],
+				lon = row["longitude"],
+				error = u"Неверное значение для широты");
+		if lon < -180 or lon > 180:
+			resource_id = get_resource_id_for_deposit_site(deposit_site_id);
+			query = """
+				SELECT ds.id, d.name_ru AS deposit_name, s.name_ru AS site_name, 
+				(SELECT aa.name_ru AS area_name FROM areas aa WHERE aa.id = ds.region_area_id) AS area_name,
+				(SELECT aa.name_ru AS region_name FROM areas aa WHERE aa.region_id = 
+					(SELECT aaa.region_id FROM areas aaa WHERE aaa.id = ds.region_area_id) AND aa.area_id=0) AS region_name,
+				ds.latitude, ds.longitude
+				FROM deposits_sites ds 
+				INNER JOIN sites s ON s.id = ds.site_id
+				INNER JOIN deposits d ON d.id = ds.deposit_id
+				WHERE ds.id = %s
+			""";
+			g.cur.execute(query, [deposit_site_id]);
+			row = g.cur.fetchone();
+
+			if not row:
+				return make_response(redirect(url_for("deposits_sites")));
+
+			return render_template("edit_deposit_site.html", 
+				permissions = get_permissions(resource_id),
+				region = row["region_name"],
+				area = row["area_name"],
+				site = row["site_name"],
+				deposit = row["deposit_name"],
+				deposit_site_id = row["id"],
+				lat = row["latitude"],
+				lon = row["longitude"],
+				error = u"Неверное значение для долготы");
+		
+		resource_id = get_resource_id_for_deposit_site(deposit_site_id);
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		update_read_permissions(permitted_roles, resource_id);
+
+		query = """
+			UPDATE deposits_sites
+			SET latitude = %s, longitude = %s
+			WHERE id = %s
+		""";
+		g.cur.execute(query, [lat, lon, deposit_site_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits_sites")));
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");
