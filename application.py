@@ -2932,6 +2932,8 @@ def delete_license():
 		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
@@ -3103,6 +3105,8 @@ def delete_deposit():
 		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
@@ -3218,6 +3222,8 @@ def delete_deposit_site():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
 		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
@@ -3555,6 +3561,8 @@ def delete_deposit_site_type():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
 		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
