@@ -1277,8 +1277,8 @@ def edit_amount_unit():
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
 		amount_unit_id = request.args.get("amount_unit_id", None);
-		if not get_amount_unit(amount_unit_id):
-			return make_response(redirect(url_for("amount_units")));
+		#if not get_amount_unit(amount_unit_id):
+		#	return make_response(redirect(url_for("amount_units")));
 		resource_id = get_resource_id_for_amount_unit(amount_unit_id);
 		return render_template("edit_amount_unit.html", 
 			amount_unit_id = amount_unit_id,
@@ -1288,8 +1288,8 @@ def edit_amount_unit():
 	elif request.method == "POST":
 		amount_unit_id = request.form.get("amount_unit_id", None);
 		amount_unit = request.form.get("amount_unit", None);
-		if not get_amount_unit(amount_unit_id):
-			return make_response(redirect(url_for("amount_units")));
+		#if not get_amount_unit(amount_unit_id):
+		#	return make_response(redirect(url_for("amount_units")));
 		resource_id = get_resource_id_for_amount_unit(amount_unit_id);
 		#Make regular expression here
 		if not amount_unit or amount_unit == "":
@@ -3372,34 +3372,34 @@ def add_deposit_site():
 		image_cut = request.files["cut"];
 		image_plan = request.files["plan"];
 
-
 		roles = get_roles();
 		permitted_roles = get_roles_from_form(request.form, roles);
+		
+		if image_cut:
+			uuid = get_uuid();
+			add_resource(uuid);
+			add_read_permissions(permitted_roles, uuid);
 
-		uuid = get_uuid();
-		add_resource(uuid);
-		add_read_permissions(permitted_roles, uuid);
+			query = """
+				INSERT INTO images(name, data, resource_id)
+				VALUES(%s, %s, (SELECT id FROM resources WHERE name = %s));
+				""";
 
-		query = """
-			INSERT INTO images(name, data, resource_id)
-			VALUES(%s, %s, (SELECT id FROM resources WHERE name = %s));
-			""";
+			g.cur.execute(query, [image_cut.filename, base64.b64encode(image_cut.read()), uuid]);
+			image_cut_id = g.cur.lastrowid;
 
-		g.cur.execute(query, [image_cut.filename, base64.b64encode(image_cut.read()), uuid]);
-		image_cut_id = g.cur.lastrowid;
+		if image_plan:
+			uuid = get_uuid();
+			add_resource(uuid);
+			add_read_permissions(permitted_roles, uuid);
 
-		uuid = get_uuid();
+			query = """
+				INSERT INTO images(name, data, resource_id)
+				VALUES(%s, %s, (SELECT id FROM resources WHERE name = %s));
+				""";
 
-		add_resource(uuid);
-		add_read_permissions(permitted_roles, uuid);
-
-		query = """
-			INSERT INTO images(name, data, resource_id)
-			VALUES(%s, %s, (SELECT id FROM resources WHERE name = %s));
-			""";
-
-		g.cur.execute(query, [image_plan.filename, base64.b64encode(image_plan.read()), uuid]);
-		image_plan_id = g.cur.lastrowid;
+			g.cur.execute(query, [image_plan.filename, base64.b64encode(image_plan.read()), uuid]);
+			image_plan_id = g.cur.lastrowid;
 		
 		uuid = get_uuid();
 		add_resource(uuid);
