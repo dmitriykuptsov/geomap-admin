@@ -871,6 +871,17 @@ def get_resource_id_for_deposit(deposit_id):
 		return None;
 	return row["resource_id"];
 
+def get_resource_id_for_deposit_site_type(deposit_site_type_id):
+	query = """
+		SELECT resource_id FROM deposits_sites_types
+			WHERE id = %s
+	""";
+	g.cur.execute(query, [deposit_site_type_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];
+
 def get_resource_id_for_deposit_site(deposit_site_id):
 	query = """
 		SELECT resource_id FROM deposits_sites
@@ -3924,14 +3935,80 @@ def edit_deposit_site_type():
 		return redirect(url_for('denied'));
 	if not is_valid_session(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
-	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
-		return make_response(redirect(url_for("login")));
 	if not is_admin(request.cookies.get("token", None)):
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
-		pass
+		deposit_site_type_id = request.args.get("deposit_site_type_id", None);
+		if not deposit_site_type_id:
+			return make_response(redirect(url_for("deposits_sites_types")));
+		resource_id = get_resource_id_for_deposit_site_type(deposit_site_type_id);
+		query = """SELECT dst.id, m.name_ru AS mineral, 
+					CONCAT(d.name_ru, " (", s.name_ru, ")") AS deposit_site, 
+					dst.amount_a_b_c1, dst.amount_c2 
+					FROM deposits_sites_types dst 
+						INNER JOIN deposits_sites ds ON ds.id = dst.deposit_site_id 
+						INNER JOIN deposits d ON d.id = ds.deposit_id 
+						INNER JOIN sites s ON s.id = ds.site_id 
+						INNER JOIN minerals m ON m.id=dst.minerals_id 
+							WHERE dst.id=%s""";
+		g.cur.execute(query, [deposit_site_type_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(redirect(url_for("deposits_sites_types")));
+		return make_response(render_template("edit_deposit_site_type.html",
+				permissions = get_permissions(resource_id), 
+				deposit_site_type_id = deposit_site_type_id,
+				deposit_site = row["deposit_site"],
+				mineral = row["mineral"],
+				amount_a_b_c1 = row["amount_a_b_c1"],
+				amount_c2 = row["amount_c2"]
+				));
 	elif request.method == "POST":
-		pass
+		deposit_site_type_id = request.form.get("deposit_site_type_id", None);
+		amount_a_b_c1 = request.form.get("amount_a_b_c1", None);
+		amount_c2 = request.form.get("amount_c2", None);
+		query = """SELECT dst.id, m.name_ru AS mineral, 
+					CONCAT(d.name_ru, " (", s.name_ru, ")") AS deposit_site, 
+					dst.amount_a_b_c1, dst.amount_c2 
+					FROM deposits_sites_types dst 
+						INNER JOIN deposits_sites ds ON ds.id = dst.deposit_site_id 
+						INNER JOIN deposits d ON d.id = ds.deposit_id 
+						INNER JOIN sites s ON s.id = ds.site_id 
+						INNER JOIN minerals m ON m.id=dst.minerals_id 
+							WHERE dst.id=%s""";
+		g.cur.execute(query, [deposit_site_type_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(redirect(url_for("deposits_sites_types")));
+
+		if not re.match("[0-9]+\\.?[0-9]*", amount_a_b_c1) or not re.match("[0-9]+\\.?[0-9]*", amount_c2) or float(amount_a_b_c1) < 0 or float(amount_c2) < 0:
+			resource_id = get_resource_id_for_deposit_site_type(deposit_site_type_id);
+			query = """SELECT dst.id, m.name_ru AS mineral, 
+						CONCAT(d.name_ru, " (", s.name_ru, ")") AS deposit_site, 
+						dst.amount_a_b_c1, dst.amount_c2 
+						FROM deposits_sites_types dst 
+							INNER JOIN deposits_sites ds ON ds.id = dst.deposit_site_id 
+							INNER JOIN deposits d ON d.id = ds.deposit_id 
+							INNER JOIN sites s ON s.id = ds.site_id 
+							INNER JOIN minerals m ON m.id=dst.minerals_id 
+								WHERE dst.id=%s""";
+			g.cur.execute(query, [deposit_site_type_id]);
+			row = g.cur.fetchone();
+			if not row:
+				return make_response(redirect(url_for("deposits_sites_types")));
+			return make_response(render_template("edit_deposit_site_type.html",
+					permissions = get_permissions(resource_id), 
+					deposit_site_type_id = deposit_site_type_id,
+					deposit_site = row["deposit_site"],
+					mineral = row["mineral"],
+					amount_a_b_c1 = row["amount_a_b_c1"],
+					amount_c2 = row["amount_c2"],
+					error = "Запас A+B+C1/C2 должены быть положительными значениями"
+					));
+		query = "UPDATE deposits_sites_types SET amount_a_b_c1 = %s, amount_c2 = %s WHERE id = %s";
+		g.cur.execute(query, [amount_a_b_c1, amount_c2, deposit_site_type_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits_sites_types")));
 
 @app.route("/deposits_sites_licences/", methods=["GET"])
 def deposits_sites_licences():
