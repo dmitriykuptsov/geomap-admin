@@ -2,11 +2,13 @@
 <html lang="ru-RU">
 	<head>
 		<title>Административная страница</title>
-		<meta charset="utf-8" /> 
+		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-datepicker3.css') }}">
 		<script src="{{ url_for('static', filename='js/jquery-3.5.0.min.js') }}"></script>
 		<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+		<script src="{{ url_for('static', filename='js/bootstrap-datepicker.min.js') }}"></script>
 		<style>
 			.header {
 				position: relative;
@@ -34,7 +36,83 @@
 				color: #007bff;
 				font-size: 12pt;
 			}
+			.dropdown {
+				display: none;
+				width: 100%;
+				max-height: 200px;
+				overflow-y: scroll;
+				float: right;
+				position: absolute;
+				z-index: 1000;
+				background-color: white;
+			}
 		</style>
+		<script type="text/javascript">
+			$(document).ready(function() {
+
+				$("#license").keyup(function() {
+					if ($("#license").val() == "") {
+						$("#licenses").hide();
+					} else {
+						$("#licenses").show();
+					}
+					get_licenses();
+				});
+
+				$("#deposit_site_type").keyup(function() {
+					if ($("#deposit_site_type").val() == "") {
+						$("#deposits_sites_types").hide();
+					} else {
+						$("#deposits_sites_types").show();
+					}
+					get_deposits_sites_types();
+				});
+			});
+
+			function set_deposit_site_type_id(id, val) {
+				$("#deposit_site_type_id").val(id);
+				$("#deposit_site_type").val(val);
+				$("#deposits_sites_types").hide();
+			}
+
+			function set_license_id(id, val) {
+				$("#license_id").val(id);
+				$("#license").val(val);
+				$("#licenses").hide();
+			}
+
+			function get_licenses() {
+				var partial_license = $("#license").val();
+				$.get("{{ url_for('get_licenses_ajax') }}?partial_license=" + partial_license, function(data) {
+					var html = "<lu>";
+					for (idx in data) {
+						var item = data[idx];
+						html += "<li>" + 
+							"<a href='#' onclick='set_license_id(" + item["id"] + ", \"" + item["name"].replace(/\"/g, "\\\"") + "\")'>" +
+								item["name"] + 
+							"</a></li>";
+					}
+					html += "</lu>";
+					$("#licenses").html(html);
+				});
+			}
+
+			function get_deposits_sites_types() {
+				var partial_name = $("#deposit_site_type").val();
+				$.get("{{ url_for('get_deposit_site_type_ajax') }}?partial_name=" + partial_name, function(data) {
+					var html = "<lu>";
+					for (idx in data) {
+						var item = data[idx];
+						html += "<li>" + 
+							"<a href='#' onclick='set_deposit_site_type_id(" + item["id"] + ", \"" + item["name"].replace(/\"/g, "\\\"") + "\")'>" +
+								item["name"] + 
+							"</a></li>";
+					}
+					html += "</lu>";
+					$("#deposits_sites_types").html(html);
+				});
+			}
+		</script>
 	</head>
 	<body>
 		<div class="header">
@@ -63,14 +141,14 @@
 							</tr>
 							<tr>
 								<td><a href="/deposit_subtypes/">Подтипы</a></td>
-							</tr>
+							</tr>							
 							<tr>
 								<td><a href="/minerals/">Полезные ископаемые</a></td>
 							</tr>
 							<tr>
 								<td><a href="/deposit_statuses/">Статусы</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/companies/">Организации</a></td>
 							</tr>
 							<tr>
@@ -88,7 +166,7 @@
 							<tr>
 								<td><a href="/deposits_sites_types/">Сводная таблица: месторождения, участки и сырьё</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/deposits_sites_licences/">Сводная таблица: месторождения, участки и лицензии</a></td>
 							</tr>
 							<!-- tr>
@@ -101,11 +179,43 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/add_company/" method="post">
+					<form action="/add_deposit_site_license/" method="post">
+						
 						<div class="form-group">
-							<input type="text" name="company" 
+							<input type="text" name="deposit_site_type" 
+								id="deposit_site_type"
 								class="form-control" 
-								placeholder="Введите организацию">
+								autocomplete="off"
+								placeholder="Введите название месторождения или полезное ископаемое">
+							<div id="deposits_sites_types" class="dropdown"></div>
+						</div>
+						<div class="form-group">
+							<input type="text" name="license" 
+								id="license"
+								class="form-control" 
+								autocomplete="off"
+								placeholder="Введите лицензию">
+							<div id="licenses" class="dropdown"></div>
+						</div>
+						<div class="form-group">
+							<input type="hidden" name="license_id" id="license_id">
+						</div>
+						<div class="form-group">
+							<input type="hidden" name="deposit_site_type_id" id="deposit_site_type_id">
+						</div>
+						<div class="form-group">
+							<input type="text" 
+								class="form-control" 
+								name="amount_a_b_c1" 
+								id="amount_a_b_c1" 
+								placeholder="Запасы A+B+C1">
+						</div>
+						<div class="form-group">
+							<input type="text" 
+								class="form-control" 
+								name="amount_c2" 
+								id="amount_c2" 
+								placeholder="Запасы C2">
 						</div>
 						<div class="form-group">
 							<span>Разрешение на чтение</span>

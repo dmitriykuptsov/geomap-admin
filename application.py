@@ -173,6 +173,30 @@ def get_deposit_kinds():
 		});
 	return deposit_kinds;
 
+def get_deposit_kinds_all():
+	query = """
+		SELECT dt.id, dt.kind_id, dt.name_ru 
+			FROM deposit_types dt
+			WHERE dt.kind_id <> 0
+				AND dt.group_id = 0
+				AND dt.type_id = 0
+				AND dt.subtype_id = 0
+	"""
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	deposit_kinds = [{
+			"id": 0, 
+			"name": u"Не выбран", 
+			"kind_id": 0
+		}];
+	for row in rows:
+		deposit_kinds.append({
+			"id": row["id"], 
+			"name": row["name_ru"], 
+			"kind_id": row["kind_id"]
+		});
+	return deposit_kinds;
+
 def get_deposit_groups(deposit_kind_id):
 	query = """
 		SELECT dt.id, dt.kind_id, dt.group_id, dt.name_ru 
@@ -251,6 +275,38 @@ def get_minerals(amount_unit_id):
 		});
 	return minerals;
 
+def get_minerals_all():
+	query = """
+		SELECT id, name_ru
+			FROM minerals
+				ORDER BY name_ru ASC
+	""";
+	g.cur.execute(query, []);
+	rows = g.cur.fetchall();
+	minerals = [];
+	for row in rows:
+		minerals.append({
+			"mineral_id": row["id"], 
+			"name": row["name_ru"]
+		});
+	return minerals;
+
+def get_statuses():
+	query = """
+		SELECT id, name_ru
+			FROM deposit_status
+				ORDER BY name_ru ASC
+	""";
+	g.cur.execute(query, []);
+	rows = g.cur.fetchall();
+	statuses = [];
+	for row in rows:
+		statuses.append({
+			"status_id": row["id"], 
+			"name": row["name_ru"]
+		});
+	return statuses;
+
 def get_sites():
 	query = """
 		SELECT id, name_ru
@@ -302,6 +358,43 @@ def get_companies(partial_company_name):
 			});		
 	return companies;
 
+def get_licenses_by_name(partial_license):
+	partial_license = "%" + partial_license + "%";
+	query = """
+		SELECT l.id, CONCAT(l.license, ', ', c.name_ru) AS license FROM licenses l
+			INNER JOIN companies c ON c.id = l.company_id
+			WHERE UPPER(CONCAT(l.license, ', ', c.name_ru)) LIKE UPPER(%s) 
+	"""
+	g.cur.execute(query, [partial_license]);
+	rows = g.cur.fetchall();
+	licenses = [];
+	for row in rows:
+		licenses.append({
+			"id": row["id"],
+			"name": row["license"]
+			});
+	return licenses;
+
+def get_deposit_site_type_by_name(partial_name):
+	partial_name = "%" + partial_name + "%";
+	query = """
+		SELECT dst.id, CONCAT(d.name_ru, ' (', s.name_ru, ')', ' - ', m.name_ru) AS name FROM deposits_sites_types dst
+			INNER JOIN deposits_sites ds ON ds.id = deposit_site_id
+			INNER JOIN deposits d ON d.id = ds.deposit_id
+			INNER JOIN sites s ON s.id = ds.site_id
+			INNER JOIN minerals m ON m.id = ds.minerals_id
+			WHERE UPPER(CONCAT(d.name_ru, ' (', s.name_ru, ')', ' - ', m.name_ru)) LIKE UPPER(%s)
+	""";
+	g.cur.execute(query, [partial_name]);
+	rows = g.cur.fetchall();
+	deposits_sites_types = [];
+	for row in rows:
+		deposits_sites_types.append({
+			"id": row["id"],
+			"name": row["name"]
+			});
+	return deposits_sites_types;
+
 def get_deposits_by_name(partial_deposit_name):
 	partial_deposit_name = "%" + partial_deposit_name + "%";
 	query = """
@@ -327,6 +420,46 @@ def get_sites_by_name(partial_site_name):
 				ORDER BY name_ru ASC
 	"""
 	g.cur.execute(query, [partial_site_name]);
+	rows = g.cur.fetchall();
+	sites = [];
+	for row in rows:
+		sites.append({
+			"id": row["id"],
+			"name": row["name_ru"]
+			});		
+	return sites;
+
+def get_deposits_sites_by_name(partial_deposit_site_name):
+	partial_deposit_site_name = "%" + partial_deposit_site_name + "%";
+	query = """
+		SELECT ds.id, CONCAT(d.name_ru, IF(s.name_ru <> "", CONCAT(" (", s.name_ru, ")"), "")) AS name_ru FROM deposits_sites ds
+			INNER JOIN deposits d ON d.id = ds.deposit_id
+			INNER JOIN sites s ON s.id = ds.site_id
+			WHERE UPPER(CONCAT(d.name_ru, "(", s.name_ru, ")")) LIKE UPPER(%s)
+				ORDER BY CONCAT(d.name_ru, "(", s.name_ru, ")") ASC
+	"""
+	g.cur.execute(query, [partial_deposit_site_name]);
+	rows = g.cur.fetchall();
+	sites = [];
+	for row in rows:
+		sites.append({
+			"id": row["id"],
+			"name": row["name_ru"]
+			});		
+	return sites;
+
+def get_deposits_sites_types_by_name(partial_deposit_site_name):
+	partial_deposit_site_name = "%" + partial_deposit_site_name + "%";
+	query = """
+		SELECT dst.id, CONCAT(d.name_ru, IF(s.name_ru <> "", CONCAT(" (", s.name_ru, ")"), ""), " - ", m.name_ru) AS name_ru FROM deposits_sites_types dst
+			INNER JOIN deposits_sites ds ON ds.id = dst.deposit_site_id
+			INNER JOIN deposits d ON d.id = ds.deposit_id
+			INNER JOIN sites s ON s.id = ds.site_id
+			INNER JOIN minerals m ON m.id = dst.minerals_id
+			WHERE UPPER(CONCAT(d.name_ru, "(", s.name_ru, ")")) LIKE UPPER(%s)
+				ORDER BY CONCAT(d.name_ru, "(", s.name_ru, ")") ASC
+	"""
+	g.cur.execute(query, [partial_deposit_site_name]);
 	rows = g.cur.fetchall();
 	sites = [];
 	for row in rows:
@@ -411,6 +544,41 @@ def get_deposits_sites_types():
 			"mineral": row["mineral"]
 			});
 	return deposits_sites_types;
+
+
+def get_deposits_sites_licenses():
+	query = """
+		SELECT dsl.id, d.name_ru AS deposit_name, s.name_ru as site_name, 
+			l.license,
+			(SELECT dtdt.name_ru FROM deposit_types dtdt 
+				WHERE dtdt.kind_id = dt.kind_id AND dtdt.group_id = 0 AND dtdt.type_id = 0 AND dtdt.subtype_id = 0) AS kind_name, 
+			(SELECT dtdt.name_ru FROM deposit_types dtdt 
+				WHERE dtdt.kind_id = dt.kind_id AND dtdt.group_id = dt.group_id AND dtdt.type_id = 0 AND dtdt.subtype_id = 0) AS group_name, 
+			(SELECT dtdt.name_ru FROM deposit_types dtdt 
+				WHERE dtdt.kind_id = dt.kind_id AND dtdt.group_id = dt.group_id AND dtdt.type_id = dt.type_id AND dtdt.subtype_id = 0) AS type_name 
+		FROM deposits_sites_licenses dsl 
+		INNER JOIN deposits_sites_types dst ON dst.id = dsl.deposit_site_type_id 
+		INNER JOIN deposits_sites ds ON ds.id = dst.deposit_site_id 
+		INNER JOIN deposits d ON d.id = ds.deposit_id 
+		INNER JOIN sites s ON s.id = ds.site_id 
+		INNER JOIN deposit_types dt ON dt.id = dst.type_group_id
+		INNER JOIN licenses l ON l.id = dsl.license_id;
+	""";
+
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	deposits_sites_licenses = [];
+	for row in rows:
+		deposits_sites_licenses.append({
+			"deposit_site_license_id": row["id"],
+			"deposit_name": row["deposit_name"],
+			"site_name": row["site_name"],
+			"kind_name": row["kind_name"],
+			"group_name": row["group_name"],
+			"type_name": row["type_name"],
+			"license": row["license"]
+			});
+	return deposits_sites_licenses;
 
 """
 Returns area
@@ -1454,7 +1622,7 @@ def add_deposit_kind():
 				resource_id)
 			VALUES(
 				"", %s, "", 
-				(SELECT MAX(dt.kind_id) + 1 
+				(SELECT IF(MAX(dt.kind_id) IS NULL, 1, MAX(dt.kind_id) + 1) 
 					FROM deposit_types dt 
 					WHERE dt.kind_id <> 0 
 						AND dt.group_id = 0 
@@ -1528,6 +1696,42 @@ def deposit_types_ajax():
 		});
 	return jsonify(deposit_types);
 
+@app.route("/deposit_subtypes_ajax/", methods=["GET"])
+def deposit_subtypes_ajax():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return jsonify([]);
+	if not is_valid_session(request.cookies.get("token", None)):
+		return jsonify([]);
+	if not is_admin(request.cookies.get("token", None)):
+		return jsonify([]);
+	deposit_kind_id = request.args.get("deposit_kind_id", None);
+	if not deposit_kind_id:
+		return jsonify([]);
+	deposit_group_id = request.args.get("deposit_group_id", None);
+	if not deposit_group_id:
+		return jsonify([]);
+	deposit_type_id = request.args.get("deposit_type_id", None);
+	if not deposit_type_id:
+		return jsonify([]);
+	query = """
+			SELECT dt.id, dt.kind_id, dt.group_id, dt.type_id, dt.subtype_id, dt.name_ru FROM deposit_types dt 
+			WHERE dt.kind_id = %s AND dt.group_id = %s 
+			AND dt.type_id = %s AND dt.subtype_id <> 0
+	""";
+	deposit_subtypes = [];
+	g.cur.execute(query, [int(deposit_kind_id), int(deposit_group_id), int(deposit_type_id)]);
+	rows = g.cur.fetchall();
+	for row in rows:
+		deposit_subtypes.append({
+			"id": row["id"], 
+			"name": row["name_ru"], 
+			"kind_id": row["kind_id"], 
+			"group_id": row["group_id"],
+			"type_id": row["type_id"],
+			"subtype_id": row["subtype_id"]
+		});
+	return jsonify(deposit_subtypes);
+
 @app.route("/deposit_groups/", methods=["GET"])
 def deposit_groups():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
@@ -1553,6 +1757,11 @@ def deposit_groups():
 				WHERE dt.kind_id = %s AND dt.group_id <> 0 
 				AND dt.type_id = 0 AND dt.subtype_id = 0
 				""";
+		if not deposit_kind_id:
+			return make_response(render_template("deposit_groups.html", 
+				deposit_kinds = [], 
+				deposit_groups = [],
+				token = get_hash(request.cookies.get("token", None))));
 		g.cur.execute(query, [int(deposit_kind_id)]);
 		rows = g.cur.fetchall();
 		for row in rows:
@@ -2397,7 +2606,14 @@ def minerals():
 		amount_unit_id = request.args.get("amount_unit_id", None);
 		amount_units = get_amount_units();
 		if not amount_unit_id:
-			amount_unit_id = amount_units[0]["amount_unit_id"];
+			if len(amount_units) > 0:
+				amount_unit_id = amount_units[0]["amount_unit_id"];
+			else:
+				return make_response(render_template("minerals.html", 
+					amount_units = [],
+					minerals = [],
+					token = get_hash(request.cookies.get("token", None))
+				));
 		else:
 			for amount_unit in amount_units:
 				if int(amount_unit_id) == amount_unit["amount_unit_id"]:
@@ -2879,7 +3095,7 @@ def edit_site():
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
 		site_id = request.args.get("site_id", None);
-		if not get_site(site_id) == None:
+		if not get_site(site_id):
 			return make_response(redirect(url_for("sites")));
 		resource_id = get_resource_id_for_site(site_id);
 		return render_template("edit_site.html", 
@@ -3265,6 +3481,21 @@ def get_sites_ajax():
 	else:
 		return jsonify([]);
 
+@app.route("/get_deposits_sites_ajax/", methods=["GET"])
+def get_deposits_sites_ajax():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return jsonify([]);
+	if not is_valid_session(request.cookies.get("token", None)):
+		return jsonify([]);
+	if not is_admin(request.cookies.get("token", None)):
+		return jsonify([]);
+	if request.method == "GET":
+		partial_deposit_site_name = request.args.get("partial_deposit_site_name", "");
+		return jsonify(get_deposits_sites_by_name(partial_deposit_site_name));
+	else:
+		return jsonify([]);
+
+
 @app.route("/get_areas_ajax/", methods=["GET"])
 def get_areas_ajax():
 	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
@@ -3375,6 +3606,9 @@ def add_deposit_site():
 		roles = get_roles();
 		permitted_roles = get_roles_from_form(request.form, roles);
 		
+		image_cut_id = None;
+		image_plan_id = None;
+
 		if image_cut:
 			uuid = get_uuid();
 			add_resource(uuid);
@@ -3387,6 +3621,13 @@ def add_deposit_site():
 
 			g.cur.execute(query, [image_cut.filename, base64.b64encode(image_cut.read()), uuid]);
 			image_cut_id = g.cur.lastrowid;
+		else:
+			query = """
+				SELECT id FROM images WHERE name LIKE 'Нет графики.jpg'
+			"""
+			g.cur.execute(query, []);
+			row = g.cur.fetchone();
+			image_cut_id = row["id"];
 
 		if image_plan:
 			uuid = get_uuid();
@@ -3400,10 +3641,19 @@ def add_deposit_site():
 
 			g.cur.execute(query, [image_plan.filename, base64.b64encode(image_plan.read()), uuid]);
 			image_plan_id = g.cur.lastrowid;
+		else:
+			query = """
+				SELECT id FROM images WHERE name LIKE 'Нет графики.jpg'
+			"""
+			g.cur.execute(query, []);
+			row = g.cur.fetchone();
+			image_plan_id = row["id"];
 		
 		uuid = get_uuid();
 		add_resource(uuid);
 		add_read_permissions(permitted_roles, uuid);
+		print(lat);
+		print(lon);
 		query = """
 			INSERT INTO deposits_sites(region_area_id, deposit_id, site_id, latitude, longitude, image_cut_id, image_plan_id, resource_id)
 			VALUES(
@@ -3575,6 +3825,291 @@ def delete_deposit_site_type():
 		g.cur.execute(query, [deposit_site_type_id]);
 		g.db.commit();
 		return make_response(redirect(url_for("deposits_sites_types")));
+
+@app.route("/add_deposit_site_type/", methods=["GET", "POST"])
+def add_deposit_site_type():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposit_kinds = get_deposit_kinds_all();
+		statuses = get_statuses();
+		minerals = get_minerals_all();
+		return make_response(render_template("add_deposit_site_type.html", 
+			kinds = deposit_kinds,
+			statuses = statuses,
+			minerals = minerals,
+			permissions = get_default_permissions()));
+	elif request.method == "POST":
+		kind_id = request.form.get("kind_id", None);
+		group_id = request.form.get("group_id", None);
+		type_id = request.form.get("type_id", None);
+		subtype_id = request.form.get("subtype_id", None);
+		deposit_site_id = request.form.get("deposit_site_id", None);
+		mineral_id = request.form.get("mineral_id", None);
+		status_id = request.form.get("status_id", None);
+		amount_a_b_c1 = request.form.get("amount_a_b_c1", None);
+		amount_c2 = request.form.get("amount_c2", None);
+		description = request.form.get("description", None);
+
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+
+		query = """
+			SELECT id FROM deposit_types 
+				WHERE kind_id = %s 
+					AND group_id = %s 
+					AND type_id = %s 
+					AND subtype_id = %s
+		""";
+
+		g.cur.execute(query, [kind_id, group_id, type_id, subtype_id]);
+		row = g.cur.fetchone();
+		if not row:
+			deposit_kinds = get_deposit_kinds_all();
+			statuses = get_statuses();
+			minerals = get_minerals_all();
+			return make_response(render_template("add_deposit_site_type.html", 
+				kinds = deposit_kinds,
+				statuses = statuses,
+				minerals = minerals,
+				permissions = get_default_permissions(),
+				error = u"Неверный код направления использования"));
+
+		type_group_id = row["id"];
+
+		query = "SELECT * FROM deposits_sites_types WHERE deposit_site_id = %s AND type_group_id = %s";
+
+		g.cur.execute(query, [int(deposit_site_id), int(type_group_id)]);
+		row = g.cur.fetchone();
+		if row:
+			deposit_kinds = get_deposit_kinds_all();
+			statuses = get_statuses();
+			minerals = get_minerals_all();
+			return make_response(render_template("add_deposit_site_type.html", 
+				kinds = deposit_kinds,
+				statuses = statuses,
+				minerals = minerals,
+				permissions = get_default_permissions(),
+				error = u"Данная комбинация (месторождение/направление использования) уже существует"));
+
+		query = """
+			INSERT INTO deposits_sites_types(
+				deposit_site_id, 
+				type_group_id, 
+				minerals_id, 
+				amount_a_b_c1, 
+				amount_c2, 
+				status_id, 
+				description, 
+				resource_id)
+			VALUES(
+				%s, %s, %s, %s, %s, %s, %s,
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [deposit_site_id, type_group_id, mineral_id, amount_a_b_c1, amount_c2, status_id, description, uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits_sites_types")));
+
+@app.route("/edit_deposit_site_type/", methods=["GET", "POST"])
+def edit_deposit_site_type():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		pass
+	elif request.method == "POST":
+		pass
+
+@app.route("/deposits_sites_licences/", methods=["GET"])
+def deposits_sites_licences():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		dsl = get_deposits_sites_licenses();
+		return make_response(render_template("deposits_sites_licenses.html", 
+				deposits_sites_licenses = dsl,
+				token = get_hash(request.cookies.get("token", None))
+				));
+
+@app.route("/delete_deposit_site_license/", methods=["GET"])
+def delete_deposit_site_license():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposit_site_license_id = request.args.get("deposit_site_license_id", None);
+		
+		query = "SELECT deposit_site_type_id, amount_a_b_c1, amount_c2 FROM deposits_sites_licenses WHERE id = %s";
+		g.cur.execute(query, [deposit_site_license_id]);
+		row = g.cur.fetchone();
+
+		amount_a_b_c1 = row["amount_a_b_c1"];
+		amount_c2 = row["amount_c2"];
+		deposit_site_type_id = row["deposit_site_type_id"];
+
+		query = "UPDATE deposits_sites_types SET amount_a_b_c1 = amount_a_b_c1 + %s, amount_c2 = amount_c2 + %s WHERE id = %s";
+		g.cur.execute(query, [amount_a_b_c1, amount_c2, deposit_site_type_id]);
+		g.db.commit();
+
+		query = """
+			DELETE FROM resources 
+				WHERE id = (SELECT resource_id FROM deposits_sites_licenses WHERE id = %s)
+		""";
+		g.cur.execute(query, [deposit_site_license_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits_sites_licences")));
+
+@app.route("/get_licenses_ajax/", methods=["GET"])
+def get_licenses_ajax():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return jsonify([]);
+	if not is_valid_session(request.cookies.get("token", None)):
+		return jsonify([]);
+	if not is_admin(request.cookies.get("token", None)):
+		return jsonify([]);
+	if request.method == "GET":
+		partial_license = request.args.get("partial_license", "");
+		return jsonify(get_licenses_by_name(partial_license));
+	else:
+		return jsonify([]);
+
+@app.route("/get_deposit_site_type_ajax/", methods=["GET"])
+def get_deposit_site_type_ajax():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return jsonify([]);
+	if not is_valid_session(request.cookies.get("token", None)):
+		return jsonify([]);
+	if not is_admin(request.cookies.get("token", None)):
+		return jsonify([]);
+	if request.method == "GET":
+		partial_name = request.args.get("partial_name", "");
+		return jsonify(get_deposits_sites_types_by_name(partial_name));
+	else:
+		return jsonify([]);
+
+@app.route("/add_deposit_site_license/", methods=["GET", "POST"])
+def add_deposit_site_license():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return make_response(render_template("add_deposit_site_license.html", 
+			permissions = get_default_permissions()));
+	elif request.method == "POST":
+		license_id = request.form.get("license_id", None);
+		deposit_site_type_id = request.form.get("deposit_site_type_id", None);
+		amount_a_b_c1 = request.form.get("amount_a_b_c1", None);
+		amount_c2 = request.form.get("amount_c2", None);
+
+		if not license_id:
+			return make_response(render_template("add_deposit_site_license.html", 
+				permissions = get_default_permissions(),
+				error = u"Неверная лицензия"));
+		if not deposit_site_type_id:
+			return make_response(render_template("add_deposit_site_license.html", 
+				permissions = get_default_permissions(),
+				error = u"Неверная код для комбинации (месторождение/участок/направление использования)"));
+
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		uuid = get_uuid();
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+
+		query = "SELECT * FROM licenses WHERE id = %s";
+		g.cur.execute(query, [license_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(render_template("add_deposit_site_license.html", 
+				permissions = get_default_permissions(),
+				error = u"Неверная лицензия"));
+
+		query = "SELECT * FROM deposits_sites_types WHERE id = %s";
+		g.cur.execute(query, [deposit_site_type_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(render_template("add_deposit_site_license.html", 
+				permissions = get_default_permissions(),
+				error = u"Неверная код для комбинации (месторождение/участок/направление использования)"));
+
+		query = """
+			SELECT amount_a_b_c1 - %s AS remainder_a_b_c1 FROM deposits_sites_types 
+				WHERE id = %s
+		""";
+
+		g.cur.execute(query, [amount_a_b_c1, deposit_site_type_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(render_template("add_deposit_site_license.html", 
+				permissions = get_default_permissions(),
+				error = u"Неверный код связи"));
+		if row["remainder_a_b_c1"] < 0:
+			return make_response(render_template("add_deposit_site_license.html", 
+				permissions = get_default_permissions(),
+				error = u"Недостаточный запас A+B+C1 на балансе"));
+
+		query = """
+			SELECT amount_c2 - %s AS remainder_c2 FROM deposits_sites_types 
+				WHERE id = %s
+		""";
+
+		g.cur.execute(query, [amount_c2, deposit_site_type_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(render_template("add_deposit_site_license.html", 
+				permissions = get_default_permissions(),
+				error = u"Неверный код связи"));
+		if row["remainder_c2"] < 0:
+			return make_response(render_template("add_deposit_site_license.html", 
+				permissions = get_default_permissions(),
+				error = u"Недостаточный запас C2 на балансе"));
+
+		query = """
+			UPDATE deposits_sites_types SET amount_a_b_c1 = amount_a_b_c1 - %s, amount_c2 = amount_c2 - %s WHERE id = %s
+		"""
+		g.cur.execute(query, [amount_a_b_c1, amount_c2, deposit_site_type_id]);
+		g.db.commit();
+
+		query = """
+			INSERT INTO deposits_sites_licenses(
+				deposit_site_type_id, 
+				license_id, 
+				amount_a_b_c1, 
+				amount_c2, 
+				resource_id)
+			VALUES(
+				%s, %s, %s, %s,
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [deposit_site_type_id, license_id, amount_a_b_c1, amount_c2, uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits_sites_licences")));
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");

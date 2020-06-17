@@ -49,90 +49,124 @@
 		</style>
 		<script type="text/javascript">
 			$(document).ready(function() {
-				$("#site").keyup(function() {
-					if ($("#site").val() == "") {
-						$("#sites").hide();
+				$("#group_id").hide();
+				$("#type_id").hide();
+				$("#subtype_id").hide();
+
+				$("#deposit_site").keyup(function() {
+					if ($("#deposit_site").val() == "") {
+						$("#deposits_sites").hide();
 					} else {
-						$("#sites").show();
+						$("#deposits_sites").show();
 					}
-					get_sites();
-				});
-
-				$("#deposit").keyup(function() {
-					if ($("#deposit").val() == "") {
-						$("#deposits").hide();
-					} else {
-						$("#deposits").show();
-					}
-					get_deposits();
-				});
-
-				$('#plan_selector').click(function(e) {
-					$('#plan').click();
-					e.preventDefault();
-					return false;
-				});
-
-				$('#cut_selector').click(function(e) {
-					$('#cut').click();
-					e.preventDefault();
-					return false;
+					get_deposits_sites();
 				});
 			});
 
-			function set_deposit_id(id, val) {
-				$("#deposit_id").val(id);
-				$("#deposit").val(val);
-				$("#deposits").hide();
+			function set_deposit_site_id(id, val) {
+				$("#deposit_site_id").val(id);
+				$("#deposit_site").val(val);
+				$("#deposits_sites").hide();
 			}
 
-			function get_deposits() {
-				var partial_deposit_name = $("#deposit").val();
-				$.get("{{ url_for('get_deposits_ajax') }}?partial_deposit_name=" + partial_deposit_name, function(data) {
+			function get_deposits_sites() {
+				var partial_deposit_site_name = $("#deposit_site").val();
+				$.get("{{ url_for('get_deposits_sites_ajax') }}?partial_deposit_site_name=" + partial_deposit_site_name, function(data) {
 					var html = "<lu>";
 					for (idx in data) {
 						var item = data[idx];
 						html += "<li>" + 
-							"<a href='#' onclick='set_deposit_id(" + item["id"] + ", \"" + item["name"].replace(/\"/g, "\\\"") + "\")'>" +
+							"<a href='#' onclick='set_deposit_site_id(" + item["id"] + ", \"" + item["name"].replace(/\"/g, "\\\"") + "\")'>" +
 								item["name"] + 
 							"</a></li>";
 					}
 					html += "</lu>";
-					$("#deposits").html(html);
+					$("#deposits_sites").html(html);
 				});
 				
 			}
 
-			function set_site_id(id, val) {
-				$("#site_id").val(id);
-				$("#site").val(val);
-				$("#sites").hide();
-			}
+			function get_groups() {
+				var kind_id = $("#kind_id").val();
 
-			function get_sites() {
-				var partial_site_name = $("#site").val();
-				$.get("{{ url_for('get_sites_ajax') }}?partial_site_name=" + partial_site_name, function(data) {
-					var html = "<lu>";
+				if (kind_id == 0) {
+					var html = "<option value='0'>Группа не выбрана</option>";
+					$("#group_id").html(html);
+					$("#group_id").hide();
+					var html = "<option value='0'>Тип не выбран</option>";
+					$("#type_id").html(html);
+					$("#type_id").hide();
+					var html = "<option value='0'>Подтип не выбран</option>";
+					$("#subtype_id").html(html);
+					$("#subtype_id").hide();
+					return;
+				}
+
+				var html = "<option value='0'>Тип не выбран</option>";
+				$("#type_id").html(html);
+				$("#type_id").hide();
+
+				var html = "<option value='0'>Подтип не выбран</option>";
+				$("#subtype_id").html(html);
+				$("#subtype_id").hide();
+
+				$.get("{{ url_for('deposit_groups_ajax') }}?deposit_kind_id=" + kind_id, function(data) {
+					var html = "<option value='0'>Группа не выбрана</option>";
 					for (idx in data) {
 						var item = data[idx];
-						html += "<li>" + 
-							"<a href='#' onclick='set_site_id(" + item["id"] + ", \"" + item["name"].replace(/\"/g, "\\\"") + "\")'>" +
-								item["name"] + 
-							"</a></li>";
+						html += "<option value='" + item["group_id"] +"'>" + item["name"] + "</option>";
 					}
-					html += "</lu>";
-					$("#sites").html(html);
+					$("#group_id").html(html);
+					$("#group_id").show();
 				});
 			}
 
-			function get_areas(region_id) {
-				$.get("{{ url_for('get_areas_ajax') }}?region_id=" + region_id, function(data) {
-					var html = "";
+			function get_types() {
+
+				var kind_id = $("#kind_id").val();
+				var group_id = $("#group_id").val();
+				
+				if (group_id == 0) {
+					var html = "<option value='0'>Тип не выбран</option>";
+					$("#type_id").html(html);
+					$("#type_id").hide();
+					var html = "<option value='0'>Подтип не выбран</option>";
+					$("#subtype_id").html(html);
+					$("#subtype_id").hide();
+					return;
+				}
+
+				$.get("{{ url_for('deposit_types_ajax') }}?deposit_kind_id=" + kind_id + "&deposit_group_id=" + group_id, function(data) {
+					var html = "<option value='0'>Тип не выбран</option>";
 					for (idx in data) {
 						var item = data[idx];
-						html += "<option value='" + item["area_id"] +"'>" + item["name"] + "</option>";
+						html += "<option value='" + item["type_id"] +"'>" + item["name"] + "</option>";
 					}
-					$("#area_id").html(html);
+					$("#type_id").html(html);
+					$("#type_id").show();
+				});
+			}
+
+			function get_subtypes() {
+				var kind_id = $("#kind_id").val();
+				var group_id = $("#group_id").val();
+				var type_id = $("#type_id").val();
+				
+				if (type_id == 0) {
+					var html = "<option value='0'>Подтип не выбран</option>";
+					$("#subtype_id").html(html);
+					$("#subtype_id").hide();
+					return;
+				}
+
+				$.get("{{ url_for('deposit_subtypes_ajax') }}?deposit_kind_id=" + kind_id + "&deposit_group_id=" + group_id + "&deposit_type_id=" + type_id, function(data) {
+					var html = "<option value='0'>Подтип не выбран</option>";
+					for (idx in data) {
+						var item = data[idx];
+						html += "<option value='" + item["subtype_id"] +"'>" + item["name"] + "</option>";
+					}
+					$("#subtype_id").html(html);
+					$("#subtype_id").show();
 				});
 			}
 
@@ -184,10 +218,10 @@
 							<tr>
 								<td><a href="/deposits/">Месторождения</a></td>
 							</tr>
-							<tr class="active">
+							<tr>
 								<td><a href="/deposits_sites/">Сводная таблица: месторождения и участки</a></td>
 							</tr>
-							<tr>
+							<tr class="active">
 								<td><a href="/deposits_sites_types/">Сводная таблица: месторождения, участки и сырьё</a></td>
 							</tr>
 							<tr>
@@ -203,83 +237,80 @@
 					</table>
 				</div>
 				<div class="col-sm-9">
-					<form action="/add_deposit_site/" method="post" enctype="multipart/form-data">
+					<form action="/add_deposit_site_type/" method="post">
 						<div class="form-group">
-							<select name="region_id" id="region_id" 
-									class="form-control" 
-									onchange="get_areas(this.value)">
-								{% for region in regions %}
-								<option value="{{ region.region_id }}">{{ region.name }}</option>
+							<select name="kind_id" id="kind_id" 
+									class="form-control" onchange="get_groups()">
+								{% for kind in kinds %}
+									<option value="{{ kind.kind_id }}">{{ kind.name }}</option>
 								{% endfor %} 
 							</select>
 						</div>
 						<div class="form-group">
-							<select name="area_id" 
-									id="area_id" 
+							<select name="group_id" id="group_id" onchange="get_types()"
 									class="form-control">
-								{% for area in areas %}
-								<option value="{{ area.area_id }}">{{ area.name }}</option>
+								<option value="0">Группа не выбрана</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<select name="type_id" id="type_id" onchange="get_subtypes()"
+									class="form-control">
+								<option value="0">Тип не выбрана</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<select name="subtype_id" id="subtype_id" 
+									class="form-control">
+								<option value="0">Подтип не выбрана</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<input type="hidden" name="deposit_site_id" id="deposit_site_id">
+						</div>
+						<div class="form-group">
+							<select name="mineral_id" id="mineral_id" 
+									class="form-control" >
+								{% for mineral in minerals %}
+									<option value="{{ mineral.mineral_id }}">{{ mineral.name }}</option>
 								{% endfor %} 
 							</select>
 						</div>
 						<div class="form-group">
-							<input type="hidden" name="deposit_id" id="deposit_id">
+							<select name="status_id" id="status_id" 
+									class="form-control" >
+								{% for status in statuses %}
+									<option value="{{ status.status_id }}">{{ status.name }}</option>
+								{% endfor %} 
+							</select>
 						</div>
 						<div class="form-group">
-							<input type="hidden" name="site_id" id="site_id">
-						</div>
-						<div class="form-group">
-							<input type="text" name="deposit" 
-								id="deposit"
+							<input type="text" name="deposit_site" 
+								id="deposit_site"
 								class="form-control" 
 								autocomplete="off"
-								placeholder="Введите название месторождения">
-							<div id="deposits" class="dropdown"></div>
+								placeholder="Введите название месторождения и участка">
+							<div id="deposits_sites" class="dropdown"></div>
 						</div>
 						<div class="form-group">
 							<input type="text" 
 								class="form-control" 
-								name="site" 
-								id="site" 
-								autocomplete="off"
-								placeholder="Введите название участка">
-							<div id="sites" class="dropdown"></div>
+								name="amount_a_b_c1" 
+								id="amount_a_b_c1" 
+								placeholder="Запасы A+B+C1">
 						</div>
 						<div class="form-group">
 							<input type="text" 
 								class="form-control" 
-								name="lat" 
-								id="lat" 
-								placeholder="Широта">
+								name="amount_c2" 
+								id="amount_c2" 
+								placeholder="Запасы C2">
 						</div>
 						<div class="form-group">
 							<input type="text" 
 								class="form-control" 
-								name="lon" 
-								id="lon" 
-								placeholder="Долгота">
-						</div>
-						<div class="form-group">
-							<button class="btn btn-primary form-control"
-								id="plan_selector"
-								>Выбрать изображение (план)</button>
-							<input type="file" 
-								accept=".png, .jpg, .jpeg"
-								style="display:none"
-								class="form-control" 
-								name="plan" 
-								id="plan" 
-								placeholder="Выберите изображение (план)">
-						</div>
-						<div class="form-group">
-							<button class="btn btn-primary form-control" id="cut_selector">Выбрать изображение (разрез)</button>
-							<input type="file" 
-								accept=".png, .jpg, .jpeg"
-								style="display:none"
-								class="form-control" 
-								name="cut" 
-								id="cut" 
-								placeholder="Выберите изображение (разрез)">
+								name="description" 
+								id="description" 
+								placeholder="Описание">
 						</div>
 						<div class="form-group">
 							<span>Разрешение на чтение</span>
