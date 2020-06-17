@@ -2742,8 +2742,8 @@ def edit_mineral():
 			return make_response(redirect(url_for("minerals")));
 		mineral = request.form.get("mineral", None);
 		if check_for_collision_in_mineral(mineral):
-			return make_response(render_template("add_mineral.html", 
-				amount_units = amount_units, 
+			return make_response(render_template("edit_mineral.html", 
+				#amount_units = amount_units, 
 				mineral = get_mineral(mineral_id),
 				permissions = get_default_permissions(), 
 				error = u"Неверное название для полезного ископаемого"));
