@@ -11,6 +11,29 @@
 			body {
 				font-size: 9pt;
 			}
+
+			.menu {
+				position: absolute;
+				top: 50px;
+				left: 0px;
+				width: 200px;
+				height: calc(100% - 50px);
+				background-color: #6f6f6f;
+			}
+
+			.menu li {
+				list-style: none;
+				margin-top: 10px;
+			}
+
+			.menu li a {
+				color: white;
+				font-weight: bold; 
+			}
+
+			.active {
+				background-color: red;
+			}
 			
 			.header {
 				position: relative;
@@ -26,17 +49,27 @@
 				position: absolute;
 				top: 20px;
 				right: 20px;
+				color: red;
 			}
-			.active {
-				background: #9f9f9f;
-			}
+			
 			.title {
 				position: absolute;
 				left: 20px;
 				top: 20px;
 				font-weight: bold;
-				color: #007bff;
+				color: red;
 				font-size: 12pt;
+			}
+
+			.dropdown {
+				display: none;
+				width: 100%;
+				max-height: 200px;
+				overflow-y: scroll;
+				float: right;
+				position: absolute;
+				z-index: 1000;
+				background-color: white;
 			}
 		</style>
 	</head>
@@ -46,66 +79,57 @@
 			<a href="/logout/" class="logout">Выйти</a>
 		</div>
 		<div class="container">
+			<div class="menu">
+				<ul>
+					<li>
+						<a href="/areas/">Районы</a>
+					</li>
+					<li>
+						<a href="/amount_units/">Единицы измерения</a>
+					</li>
+					<li>
+						<a href="/deposit_kinds/">Виды</a>
+					</li>
+					<li class="active">
+						<a href="/deposit_groups/">Группы</a>
+					</li>
+					<li>
+						<a href="/deposit_types/">Типы</a>
+					</li>
+					<li>
+						<a href="/deposit_subtypes/">Подтипы</a>
+					</li>
+					<li>
+						<a href="/minerals/">Полезные ископаемые</a>
+					</li>
+					<li>
+						<a href="/deposit_statuses/">Статусы</a>
+					</li>
+					<li>
+						<a href="/companies/">Организации</a>
+					</li>
+					<li>
+						<a href="/sites/">Участки</a>
+					</li>
+					<li>
+						<a href="/licenses/">Лицензии</a>
+					</li>
+					<li>
+						<a href="/deposits/">Месторождения</a>
+					</li>
+					<li>
+						<a href="/deposits_sites/">Сводная таблица: месторождения и участки</a>
+					</li>
+					<li>
+						<a href="/deposits_sites_types/">Сводная таблица: месторождения, участки и сырьё</a>
+					</li>
+					<li>
+						<a href="/deposits_sites_licences/">Сводная таблица: месторождения, участки и лицензии</a>
+					</li>
+				</ul>
+			</div>	
 			<div class="row">
-				<div class="col-sm-3">
-					<table class="table">
-						<tbody>
-							<tr>
-								<td><a href="/areas/">Районы</a></td>
-							</tr>
-							<tr>
-								<td><a href="/amount_units/">Единицы измерения</a></td>
-							</tr>
-							<tr>
-								<td><a href="/deposit_kinds/">Виды</a></td>
-							</tr>
-							<tr class="active">
-								<td><a href="/deposit_groups/">Группы</a></td>
-							</tr>
-							<tr>
-								<td><a href="/deposit_types/">Типы</a></td>
-							</tr>
-							<tr>
-								<td><a href="/deposit_subtypes/">Подтипы</a></td>
-							</tr>
-							<tr>
-								<td><a href="/minerals/">Полезные ископаемые</a></td>
-							</tr>
-							<tr>
-								<td><a href="/deposit_statuses/">Статусы</a></td>
-							</tr>
-							<tr>
-								<td><a href="/companies/">Организации</a></td>
-							</tr>
-							<tr>
-								<td><a href="/sites/">Участки</a></td>
-							</tr>
-							<tr>
-								<td><a href="/licenses/">Лицензии</a></td>
-							</tr>
-							<tr>
-								<td><a href="/deposits/">Месторождения</a></td>
-							</tr>
-							<tr>
-								<td><a href="/deposits_sites/">Сводная таблица: месторождения и участки</a></td>
-							</tr>
-							<tr>
-								<td><a href="/deposits_sites_types/">Сводная таблица: месторождения, участки и сырьё</a></td>
-							</tr>
-							<tr>
-								<td><a href="/deposits_sites_licences/">Сводная таблица: месторождения, участки и лицензии</a></td>
-							</tr>
-
-							<!-- tr>
-								<td><a href="#">Контур участка</a></td>
-							</tr>
-							<tr>
-								<td><a href="#">Контур залицензированного участка</a></td>
-							</tr -->
-						</tbody>
-					</table>
-				</div>
-				<div class="col-sm-9">
+				<div class="col-sm-12">
 					<form action="/add_deposit_group/" method="post">
 						<div class="form-group">
 							<select name="deposit_kind_id" class="form-control">
