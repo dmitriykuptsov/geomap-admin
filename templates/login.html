@@ -9,6 +9,30 @@
 		<script src="{{ url_for('static', filename='js/jquery-3.5.0.min.js') }}"></script>
 		<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
 		<style>
+			.wrapper {
+				display: flex;
+				width: 100%;
+				align-items: stretch;
+				margin-top: -20px;
+			}
+
+			#sidebar {
+				min-width: 250px;
+				max-width: 250px;
+				background-color: #6f6f6f;
+			}
+
+			#sidebar.active {
+				margin-left: -250px;
+			}
+
+			#sidebar li a {
+				top: 0px;
+				color: white;
+				margin-left: 10px;
+				font-weight: bold; 
+			}
+		
 			body {
 				font-size: 9pt;
 			}

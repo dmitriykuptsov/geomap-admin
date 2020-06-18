@@ -10,6 +10,31 @@
 		<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
 		<script src="{{ url_for('static', filename='js/bootstrap-datepicker.min.js') }}"></script>
 		<style>
+			.wrapper {
+				display: flex;
+				width: 100%;
+				align-items: stretch;
+				margin-top: -20px;
+			}
+
+			#sidebar {
+				min-width: 250px;
+				max-width: 250px;
+				background-color: #6f6f6f;
+				min-height: 100vh;
+			}
+
+			#sidebar.active {
+				margin-left: -250px;
+			}
+
+			#sidebar li a {
+				top: 0px;
+				color: white;
+				margin-left: 10px;
+				font-weight: bold; 
+			}
+
 			body {
 				font-size: 9pt;
 			}
@@ -204,9 +229,10 @@
 			<div class="title">Система администрирования базы данных</div>
 			<a href="/logout/" class="logout">Выйти</a>
 		</div>
-		<div class="container">
-			<div class="menu">
-				<ul>
+		<div class="wrapper">
+			<!-- div class="menu" -->
+			<nav id="sidebar">
+				<ul class="list-unstyled components">
 					<li>
 						<a href="/areas/">Районы</a>
 					</li>
@@ -253,113 +279,115 @@
 						<a href="/deposits_sites_licences/">Сводная таблица: месторождения, участки и лицензии</a>
 					</li>
 				</ul>
-			</div>	
-			<div class="row">
-				<div class="col-sm-12">
-					<form action="/add_deposit_site_type/" method="post">
-						<div class="form-group">
-							<select name="kind_id" id="kind_id" 
-									class="form-control" onchange="get_groups()">
-								{% for kind in kinds %}
-									<option value="{{ kind.kind_id }}">{{ kind.name }}</option>
-								{% endfor %} 
-							</select>
-						</div>
-						<div class="form-group">
-							<select name="group_id" id="group_id" onchange="get_types()"
-									class="form-control">
-								<option value="0">Группа не выбрана</option>
-							</select>
-						</div>
-						<div class="form-group">
-							<select name="type_id" id="type_id" onchange="get_subtypes()"
-									class="form-control">
-								<option value="0">Тип не выбрана</option>
-							</select>
-						</div>
-						<div class="form-group">
-							<select name="subtype_id" id="subtype_id" 
-									class="form-control">
-								<option value="0">Подтип не выбрана</option>
-							</select>
-						</div>
-						<div class="form-group">
-							<input type="hidden" name="deposit_site_id" id="deposit_site_id">
-						</div>
-						<div class="form-group">
-							<select name="mineral_id" id="mineral_id" 
-									class="form-control" >
-								{% for mineral in minerals %}
-									<option value="{{ mineral.mineral_id }}">{{ mineral.name }}</option>
-								{% endfor %} 
-							</select>
-						</div>
-						<div class="form-group">
-							<select name="status_id" id="status_id" 
-									class="form-control" >
-								{% for status in statuses %}
-									<option value="{{ status.status_id }}">{{ status.name }}</option>
-								{% endfor %} 
-							</select>
-						</div>
-						<div class="form-group">
-							<input type="text" name="deposit_site" 
-								id="deposit_site"
-								class="form-control" 
-								autocomplete="off"
-								placeholder="Введите название месторождения и участка">
-							<div id="deposits_sites" class="dropdown"></div>
-						</div>
-						<div class="form-group">
-							<input type="text" 
-								class="form-control" 
-								name="amount_a_b_c1" 
-								id="amount_a_b_c1" 
-								placeholder="Запасы A+B+C1">
-						</div>
-						<div class="form-group">
-							<input type="text" 
-								class="form-control" 
-								name="amount_c2" 
-								id="amount_c2" 
-								placeholder="Запасы C2">
-						</div>
-						<div class="form-group">
-							<input type="text" 
-								class="form-control" 
-								name="description" 
-								id="description" 
-								placeholder="Описание">
-						</div>
-						<div class="form-group">
-							<span>Разрешение на чтение</span>
-						</div>
-						{% for permission in permissions %}
-							{% if permission["granted"] %}
+			</nav>
+			<div class="container" style="margin-top: 10px">	
+				<div class="row">
+					<div class="col-sm-12">
+						<form action="/add_deposit_site_type/" method="post">
+							<div class="form-group">
+								<select name="kind_id" id="kind_id" 
+										class="form-control" onchange="get_groups()">
+									{% for kind in kinds %}
+										<option value="{{ kind.kind_id }}">{{ kind.name }}</option>
+									{% endfor %} 
+								</select>
+							</div>
+							<div class="form-group">
+								<select name="group_id" id="group_id" onchange="get_types()"
+										class="form-control">
+									<option value="0">Группа не выбрана</option>
+								</select>
+							</div>
+							<div class="form-group">
+								<select name="type_id" id="type_id" onchange="get_subtypes()"
+										class="form-control">
+									<option value="0">Тип не выбрана</option>
+								</select>
+							</div>
+							<div class="form-group">
+								<select name="subtype_id" id="subtype_id" 
+										class="form-control">
+									<option value="0">Подтип не выбрана</option>
+								</select>
+							</div>
+							<div class="form-group">
+								<input type="hidden" name="deposit_site_id" id="deposit_site_id">
+							</div>
+							<div class="form-group">
+								<select name="mineral_id" id="mineral_id" 
+										class="form-control" >
+									{% for mineral in minerals %}
+										<option value="{{ mineral.mineral_id }}">{{ mineral.name }}</option>
+									{% endfor %} 
+								</select>
+							</div>
+							<div class="form-group">
+								<select name="status_id" id="status_id" 
+										class="form-control" >
+									{% for status in statuses %}
+										<option value="{{ status.status_id }}">{{ status.name }}</option>
+									{% endfor %} 
+								</select>
+							</div>
+							<div class="form-group">
+								<input type="text" name="deposit_site" 
+									id="deposit_site"
+									class="form-control" 
+									autocomplete="off"
+									placeholder="Введите название месторождения и участка">
+								<div id="deposits_sites" class="dropdown"></div>
+							</div>
+							<div class="form-group">
+								<input type="text" 
+									class="form-control" 
+									name="amount_a_b_c1" 
+									id="amount_a_b_c1" 
+									placeholder="Запасы A+B+C1">
+							</div>
+							<div class="form-group">
+								<input type="text" 
+									class="form-control" 
+									name="amount_c2" 
+									id="amount_c2" 
+									placeholder="Запасы C2">
+							</div>
+							<div class="form-group">
+								<input type="text" 
+									class="form-control" 
+									name="description" 
+									id="description" 
+									placeholder="Описание">
+							</div>
+							<div class="form-group">
+								<span>Разрешение на чтение</span>
+							</div>
+							{% for permission in permissions %}
+								{% if permission["granted"] %}
+									<div class="form-group">
+										<input type="checkbox" 
+											checked 
+											name="{{permission["role"]}}">
+									{{permission["role"]}}
+									</div>
+								{% else %}
+									<div class="form-group">
+										<input type="checkbox" 
+										name="{{permission["role"]}}">{{permission["role"]}}
+									</div>
+								{% endif %}
+							{% endfor %}
+							<div class="form-group">
+								<button type="submit" class="btn btn-primary form-control">Сохранить</button>
+							</div>
+							{% if error %}
 								<div class="form-group">
-									<input type="checkbox" 
-										checked 
-										name="{{permission["role"]}}">
-								{{permission["role"]}}
-								</div>
-							{% else %}
-								<div class="form-group">
-									<input type="checkbox" 
-									name="{{permission["role"]}}">{{permission["role"]}}
+									<div class="alert alert-danger" role="alert">
+										<span>{{ error }}</span>
+									</div>
 								</div>
 							{% endif %}
-						{% endfor %}
-						<div class="form-group">
-							<button type="submit" class="btn btn-primary form-control">Сохранить</button>
-						</div>
-						{% if error %}
-							<div class="form-group">
-								<div class="alert alert-danger" role="alert">
-									<span>{{ error }}</span>
-								</div>
-							</div>
-						{% endif %}
-					</form>
+						</form>
+					</div>
 				</div>
 			</div>
 		</div>

@@ -10,6 +10,30 @@
 		<script src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script>		
 		<script src="{{ url_for('static', filename='js/dataTables.bootstrap4.min.js') }}"></script>		
 		<style>
+			.wrapper {
+				display: flex;
+				width: 100%;
+				align-items: stretch;
+				margin-top: -20px;
+			}
+
+			#sidebar {
+				min-width: 250px;
+				max-width: 250px;
+				background-color: #6f6f6f;
+			}
+
+			#sidebar.active {
+				margin-left: -250px;
+			}
+
+			#sidebar li a {
+				top: 0px;
+				color: white;
+				margin-left: 10px;
+				font-weight: bold; 
+			}
+
 			body {
 				font-size: 9pt;
 			}
@@ -104,9 +128,10 @@
 			<div class="title">Система администрирования базы данных</div>
 			<a href="/logout/" class="logout">Выйти</a>
 		</div>
-		<div class="container">
-			<div class="menu">
-				<ul>
+		<div class="wrapper">
+			<!-- div class="menu" -->
+			<nav id="sidebar">
+				<ul class="list-unstyled components">
 					<li>
 						<a href="/areas/">Районы</a>
 					</li>
@@ -153,42 +178,44 @@
 						<a href="/deposits_sites_licences/">Сводная таблица: месторождения, участки и лицензии</a>
 					</li>
 				</ul>
-			</div>
-			<div class="row">
-				<div class="col-sm-12">
-					<form action="/minerals/" method="get" onchange="this.submit()">
-						<div class="form-group">
-							<a href="/add_mineral/">Добавить</a><br/>
-						</div>
-						<div class="form-group">
-							<select name="amount_unit_id" class="form-control">
-								{% for amount_unit in amount_units %}
-								<option value="{{ amount_unit.amount_unit_id }}">{{ amount_unit.name }}</option>
-								{% endfor %} 
-							</select>
-						</div>
-						<div class="form-group">
-							<table class="table" id="dt">
-								<thead class="thead-dark">
-									<tr>
-										<th>Полезное ископаемое</th>
-										<th>Действие</th>
-									</tr>
-								</thead>
-								<tbody>
-									{% for mineral in minerals %}
-									<tr>
-										<td>{{ mineral.name }}</td>
-										<td>
-											<a href="/delete_mineral?mineral_id={{ mineral.mineral_id }}&token={{token}}">Удалить</a>
-											<a href="/edit_mineral?mineral_id={{ mineral.mineral_id }}">Редактировать</a>
-										</td>
-									</tr>
-									{% endfor %}
-								</tbody>
-							</table>
-						</div>
-					</form>
+			</nav>
+			<div class="container">
+				<div class="row">
+					<div class="col-sm-12">
+						<form action="/minerals/" method="get" onchange="this.submit()">
+							<div class="form-group">
+								<a href="/add_mineral/">Добавить</a><br/>
+							</div>
+							<div class="form-group">
+								<select name="amount_unit_id" class="form-control">
+									{% for amount_unit in amount_units %}
+									<option value="{{ amount_unit.amount_unit_id }}">{{ amount_unit.name }}</option>
+									{% endfor %} 
+								</select>
+							</div>
+							<div class="form-group">
+								<table class="table" id="dt">
+									<thead class="thead-dark">
+										<tr>
+											<th>Полезное ископаемое</th>
+											<th>Действие</th>
+										</tr>
+									</thead>
+									<tbody>
+										{% for mineral in minerals %}
+										<tr>
+											<td>{{ mineral.name }}</td>
+											<td>
+												<a href="/delete_mineral?mineral_id={{ mineral.mineral_id }}&token={{token}}">Удалить</a>
+												<a href="/edit_mineral?mineral_id={{ mineral.mineral_id }}">Редактировать</a>
+											</td>
+										</tr>
+										{% endfor %}
+									</tbody>
+								</table>
+							</div>
+						</form>
+					</div>
 				</div>
 			</div>
 		</div>

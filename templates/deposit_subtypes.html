@@ -10,6 +10,31 @@
 		<script src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script>		
 		<script src="{{ url_for('static', filename='js/dataTables.bootstrap4.min.js') }}"></script>		
 		<style>
+			.wrapper {
+				display: flex;
+				width: 100%;
+				align-items: stretch;
+				margin-top: -20px;
+			}
+
+			#sidebar {
+				min-width: 250px;
+				max-width: 250px;
+				background-color: #6f6f6f;
+				min-height: 100vh;
+			}
+
+			#sidebar.active {
+				margin-left: -250px;
+			}
+
+			#sidebar li a {
+				top: 0px;
+				color: white;
+				margin-left: 10px;
+				font-weight: bold; 
+			}
+
 			body {
 				font-size: 9pt;
 			}
@@ -115,9 +140,10 @@
 			<div class="title">Система администрирования базы данных</div>
 			<a href="/logout/" class="logout">Выйти</a>
 		</div>
-		<div class="container">
-			<div class="menu">
-				<ul>
+		<div class="wrapper">
+			<!-- div class="menu" -->
+			<nav id="sidebar">
+				<ul class="list-unstyled components">
 					<li>
 						<a href="/areas/">Районы</a>
 					</li>
@@ -164,57 +190,59 @@
 						<a href="/deposits_sites_licences/">Сводная таблица: месторождения, участки и лицензии</a>
 					</li>
 				</ul>
-			</div>			
-			<div class="row">
-				<div class="col-sm-12">					
-					<form action="/deposit_subtypes/" method="get" onchange="this.submit()">
-						<div class="form-group">
-							<a href="/add_deposit_subtype/">Добавить</a>
-						</div>
-						<div class="form-group">
-							<select name="deposit_kind_id" class="form-control">
-								{% for deposit_kind in deposit_kinds %}
-								<option value="{{ deposit_kind.kind_id }}">{{ deposit_kind.name }}</option>
-								{% endfor %} 
-							</select>
-						</div>
-						<div class="form-group">
-							<select name="deposit_group_id" class="form-control">
-								{% for deposit_group in deposit_groups %}
-								<option value="{{ deposit_group.group_id }}">{{ deposit_group.name }}</option>
-								{% endfor %} 
-							</select>
-						</div>
-						<div class="form-group">
-							<select name="deposit_type_id" class="form-control">
-								{% for deposit_type in deposit_types %}
-								<option value="{{ deposit_type.type_id }}">{{ deposit_type.name }}</option>
-								{% endfor %} 
-							</select>
-						</div>
-						<div class="form-group">
-							<table class="table" id="dt">
-								<thead class="thead-dark">
-									<tr>
-										<th>Подтип</th>
-										<th>Действие</th>
-									</tr>
-								</thead>
-								<tbody>
-									{% for deposit_subtype in deposit_subtypes %}
-									<tr>
-										<td>{{ deposit_subtype.name }}</td>
-										<td>
-											<a href="/delete_deposit_subtype?kind_id={{ deposit_subtype.kind_id }}&group_id={{ deposit_subtype.group_id }}&type_id={{deposit_subtype.type_id}}&subtype_id={{deposit_subtype.subtype_id}}&token={{token}}">
-											Удалить</a>
-											<a href="/edit_deposit_subtype?kind_id={{ deposit_subtype.kind_id }}&group_id={{ deposit_subtype.group_id }}&type_id={{deposit_subtype.type_id}}&subtype_id={{deposit_subtype.subtype_id}}">Редактировать</a>
-										</td>
-									</tr>
-									{% endfor %}
-								</tbody>
-							</table>
-						</div>
-					</form>
+			</nav>
+			<div class="container">			
+				<div class="row">
+					<div class="col-sm-12">					
+						<form action="/deposit_subtypes/" method="get" onchange="this.submit()">
+							<div class="form-group">
+								<a href="/add_deposit_subtype/">Добавить</a>
+							</div>
+							<div class="form-group">
+								<select name="deposit_kind_id" class="form-control">
+									{% for deposit_kind in deposit_kinds %}
+									<option value="{{ deposit_kind.kind_id }}">{{ deposit_kind.name }}</option>
+									{% endfor %} 
+								</select>
+							</div>
+							<div class="form-group">
+								<select name="deposit_group_id" class="form-control">
+									{% for deposit_group in deposit_groups %}
+									<option value="{{ deposit_group.group_id }}">{{ deposit_group.name }}</option>
+									{% endfor %} 
+								</select>
+							</div>
+							<div class="form-group">
+								<select name="deposit_type_id" class="form-control">
+									{% for deposit_type in deposit_types %}
+									<option value="{{ deposit_type.type_id }}">{{ deposit_type.name }}</option>
+									{% endfor %} 
+								</select>
+							</div>
+							<div class="form-group">
+								<table class="table" id="dt">
+									<thead class="thead-dark">
+										<tr>
+											<th>Подтип</th>
+											<th>Действие</th>
+										</tr>
+									</thead>
+									<tbody>
+										{% for deposit_subtype in deposit_subtypes %}
+										<tr>
+											<td>{{ deposit_subtype.name }}</td>
+											<td>
+												<a href="/delete_deposit_subtype?kind_id={{ deposit_subtype.kind_id }}&group_id={{ deposit_subtype.group_id }}&type_id={{deposit_subtype.type_id}}&subtype_id={{deposit_subtype.subtype_id}}&token={{token}}">
+												Удалить</a>
+												<a href="/edit_deposit_subtype?kind_id={{ deposit_subtype.kind_id }}&group_id={{ deposit_subtype.group_id }}&type_id={{deposit_subtype.type_id}}&subtype_id={{deposit_subtype.subtype_id}}">Редактировать</a>
+											</td>
+										</tr>
+										{% endfor %}
+									</tbody>
+								</table>
+							</div>
+						</form>
+					</div>
 				</div>
 			</div>
 		</div>
