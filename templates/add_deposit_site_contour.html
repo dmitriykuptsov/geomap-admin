@@ -97,6 +97,61 @@
 				background-color: white;
 			}
 		</style>
+		<script type="text/javascript">
+			$(document).ready(function() {
+
+				$("#deposit_site_type").keyup(function() {
+					if ($("#deposit_site_type").val() == "") {
+						$("#deposits_sites_types").hide();
+					} else {
+						$("#deposits_sites_types").show();
+					}
+					get_deposits_sites_types();
+				});
+			});
+
+			function set_deposit_site_type_id(id, val) {
+				$("#deposit_site_type_id").val(id);
+				$("#deposit_site_type").val(val);
+				$("#deposits_sites_types").hide();
+			}
+
+			function add_new_point() {
+				$("#points").append("<div class=\"row\">" +
+					"<div class=\"form-group col-md-4\">" +
+						"<input type=\"text\" name=\"lat\" " +
+							"class=\"form-control\" " +
+							"placeholder=\"Введите широту\">" +
+					"</div>" +
+					"<div class=\"form-group col-md-4\">" +
+						"<input type=\"text\" name=\"lon\" " +
+							"class=\"form-control\" " +
+							"placeholder=\"Введите долготу\">" +
+					"</div>" +
+						"<div class=\"form-group col-md-4\">" +
+							"<input type=\"text\" name=\"point_number\" " +
+								"class=\"form-control\" " +
+								"placeholder=\"Введите номер точки\">" +
+						"</div>" +
+					"</div>");
+			}
+
+			function get_deposits_sites_types() {
+				var partial_name = $("#deposit_site_type").val();
+				$.get("{{ url_for('get_deposit_site_type_ajax') }}?partial_name=" + partial_name, function(data) {
+					var html = "<lu>";
+					for (idx in data) {
+						var item = data[idx];
+						html += "<li>" + 
+							"<a href='#' onclick='set_deposit_site_type_id(" + item["id"] + ", \"" + item["name"].replace(/\"/g, "\\\"") + "\")'>" +
+								item["name"] + 
+							"</a></li>";
+					}
+					html += "</lu>";
+					$("#deposits_sites_types").html(html);
+				});
+			}
+		</script>
 	</head>
 	<body>
 		<div class="header">
@@ -140,7 +195,7 @@
 					<li>
 						<a href="/licenses/">Лицензии</a>
 					</li>
-					<li class="active">
+					<li>
 						<a href="/deposits/">Месторождения</a>
 					</li>
 					<li>
@@ -152,7 +207,7 @@
 					<li>
 						<a href="/deposits_sites_licences/">Сводная таблица: месторождения, участки и лицензии</a>
 					</li>
-					<li>
+					<li class="active">
 						<a href="/deposits_sites_contours/">Контуры месторождений и участков</a>
 					</li>
 				</ul>
@@ -160,11 +215,39 @@
 			<div class="container" style="margin-top: 10px">	
 				<div class="row">
 					<div class="col-sm-12">
-						<form action="/add_deposit/" method="post">
+						<form action="/add_deposit_site_contour/" method="post">
 							<div class="form-group">
-								<input type="text" name="deposit" 
+								<input type="text" name="deposit_site_type" 
+									id="deposit_site_type"
 									class="form-control" 
-									placeholder="Введите название месторождения">
+									autocomplete="off"
+									placeholder="Введите название месторождения или полезное ископаемое">
+								<div id="deposits_sites_types" class="dropdown"></div>
+							</div>
+							<div class="form-group">
+								<input type="hidden" name="deposit_site_type_id" id="deposit_site_type_id">
+							</div>
+							<div id="points">
+								<div class="row">
+									<div class="form-group col-md-4">
+										<input type="text" name="lat" 
+											class="form-control" 
+											placeholder="Введите широту">
+									</div>
+									<div class="form-group col-md-4">
+										<input type="text" name="lon" 
+											class="form-control" 
+											placeholder="Введите долготу">
+									</div>
+									<div class="form-group col-md-4">
+										<input type="text" name="point_number" 
+											class="form-control" 
+											placeholder="Введите номер точки">
+									</div>
+								</div>
+							</div>
+							<div class="form-group">
+								<button class="btn btn-primary form-control" onclick="add_new_point(); return false;">Добавить точку</button>
 							</div>
 							<div class="form-group">
 								<span>Разрешение на чтение</span>

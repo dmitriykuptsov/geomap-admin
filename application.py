@@ -580,6 +580,43 @@ def get_deposits_sites_licenses():
 			});
 	return deposits_sites_licenses;
 
+def get_deposits_sites_contours():
+	query = "SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));";
+	g.cur.execute(query);
+	query = """
+		SELECT dsc.deposit_site_type_id, d.name_ru AS deposit_name, s.name_ru as site_name, 
+			(SELECT dtdt.name_ru FROM deposit_types dtdt 
+				WHERE dtdt.kind_id = dt.kind_id AND dtdt.group_id = 0 AND dtdt.type_id = 0 AND dtdt.subtype_id = 0) AS kind_name, 
+			(SELECT dtdt.name_ru FROM deposit_types dtdt 
+				WHERE dtdt.kind_id = dt.kind_id AND dtdt.group_id = dt.group_id AND dtdt.type_id = 0 AND dtdt.subtype_id = 0) AS group_name, 
+			(SELECT dtdt.name_ru FROM deposit_types dtdt 
+				WHERE dtdt.kind_id = dt.kind_id AND dtdt.group_id = dt.group_id AND dtdt.type_id = dt.type_id AND dtdt.subtype_id = 0) AS type_name,
+			m.name_ru AS mineral_name
+		FROM deposit_site_contours dsc
+		INNER JOIN deposits_sites_types dst ON dst.id = dsc.deposit_site_type_id 
+		INNER JOIN deposits_sites ds ON ds.id = dst.deposit_site_id 
+		INNER JOIN deposits d ON d.id = ds.deposit_id 
+		INNER JOIN sites s ON s.id = ds.site_id 
+		INNER JOIN minerals m ON m.id = dst.minerals_id
+		INNER JOIN deposit_types dt ON dt.id = dst.type_group_id
+		GROUP BY dsc.deposit_site_type_id;
+	""";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	deposits_sites_contours = [];
+	print(len(rows));
+	for row in rows:
+		deposits_sites_contours.append({
+			"deposit_site_type_id": row["deposit_site_type_id"],
+			"deposit_name": row["deposit_name"],
+			"site_name": row["site_name"],
+			"kind_name": row["kind_name"],
+			"group_name": row["group_name"],
+			"type_name": row["type_name"],
+			"mineral_name": row["mineral_name"]
+			});
+	return deposits_sites_contours;
+
 """
 Returns area
 """
@@ -4187,6 +4224,114 @@ def add_deposit_site_license():
 		g.cur.execute(query, [deposit_site_type_id, license_id, amount_a_b_c1, amount_c2, uuid]);
 		g.db.commit();
 		return make_response(redirect(url_for("deposits_sites_licences")));
+
+@app.route("/deposits_sites_contours/", methods=["GET"])
+def deposits_sites_contours():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		dsc = get_deposits_sites_contours();
+		return make_response(render_template("deposits_sites_contours.html", 
+				deposits_sites_contours = dsc,
+				token = get_hash(request.cookies.get("token", None))
+				));
+
+@app.route("/add_deposit_site_contour/", methods=["GET", "POST"])
+def add_deposit_site_contour():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return render_template("add_deposit_site_contour.html", 
+			permissions = get_default_permissions(), 
+			error = None);
+	elif request.method == "POST":
+		deposit_site_type_id = request.form.get("deposit_site_type_id", None);
+		points = request.form.getlist("point_number", None);
+		lats = request.form.getlist("lat", None);
+		lons = request.form.getlist("lon", None);
+		if len(points) != len(lons) or len(points) != len(lats):
+			return render_template("add_deposit_site_contour.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверное количество точек");
+		for i in range(0, len(points)):
+			if not re.match("[0-9]+", points[i]):
+				return render_template("add_deposit_site_contour.html", 
+					permissions = get_default_permissions(), 
+					error = u"Неверный номер точки");
+			if not re.match("[0-9]+\.[0-9]+", lats[i]):
+				return render_template("add_deposit_site_contour.html", 
+					permissions = get_default_permissions(), 
+					error = u"Неверное значение для широты");
+			if not re.match("[0-9]+\.[0-9]+", lons[i]):
+				return render_template("add_deposit_site_contour.html", 
+					permissions = get_default_permissions(), 
+					error = u"Неверное значение для долготы");
+		query = "SELECT * FROM deposits_sites_types WHERE id = %s";
+		g.cur.execute(query, [deposit_site_type_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return render_template("add_deposit_site_contour.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверное идентификатор месторождения/участок/ПИ");
+		query = "SELECT * FROM deposit_site_contours WHERE deposit_site_type_id = %s";
+		g.cur.execute(query, [deposit_site_type_id]);
+		row = g.cur.fetchone();
+		if row:
+			return render_template("add_deposit_site_contour.html", 
+				permissions = get_default_permissions(), 
+				error = u"Контур уже существует");
+		query = "DELETE FROM deposit_site_contours WHERE deposit_site_type_id = %s";
+		g.cur.execute(query, [deposit_site_type_id]);
+		for i in range(0, len(points)):
+			roles = get_roles();
+			permitted_roles = get_roles_from_form(request.form, roles);
+			uuid = get_uuid();
+			add_resource(uuid);
+			add_read_permissions(permitted_roles, uuid);
+			query = """
+				INSERT INTO deposit_site_contours(
+					deposit_site_type_id, 
+					latitude, 
+					longitude, 
+					point_number, 
+					resource_id)
+				VALUES(
+					%s, %s, %s, %s,
+					(SELECT id FROM resources WHERE name = %s)
+				)
+			""";
+			g.cur.execute(query, [deposit_site_type_id, lats[i], lons[i], points[i], uuid]);
+			g.db.commit();
+		return make_response(redirect(url_for("deposits_sites_contours")));
+
+@app.route("/delete_deposit_site_contour/", methods=["GET"])
+def delete_deposit_site_contour():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposit_site_type_id = request.args.get("deposit_site_type_id", None);
+		
+		query = """
+			DELETE FROM resources 
+				WHERE id IN (SELECT resource_id FROM deposit_site_contours WHERE deposit_site_type_id = %s)
+		""";
+		g.cur.execute(query, [deposit_site_type_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits_sites_contours")));
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");
