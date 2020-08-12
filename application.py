@@ -4324,7 +4324,7 @@ def delete_deposit_site_contour():
 		return make_response(redirect(url_for("login")));
 	if request.method == "GET":
 		deposit_site_type_id = request.args.get("deposit_site_type_id", None);
-		
+
 		query = """
 			DELETE FROM resources 
 				WHERE id IN (SELECT resource_id FROM deposit_site_contours WHERE deposit_site_type_id = %s)
@@ -4332,6 +4332,306 @@ def delete_deposit_site_contour():
 		g.cur.execute(query, [deposit_site_type_id]);
 		g.db.commit();
 		return make_response(redirect(url_for("deposits_sites_contours")));
+
+@app.route("/pending_registrations/")
+def pending_registrations():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	query = "SELECT id, user_first_name, user_last_name, phone_number, email_address, description FROM pending_registrations";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	pending_registrations = [];
+	for row in rows:
+		pending_registrations.append({
+			"registration_id": row["id"],
+			"first_name": row["user_first_name"],
+			"last_name": row["user_last_name"],
+			"phone_number": row["phone_number"],
+			"email_address": row["email_address"],
+			"description": row["description"],
+		});
+	return render_template("pending_registrations.html", 
+		pending_registrations = pending_registrations,
+		token = get_hash(request.cookies.get("token", None)));
+
+@app.route("/delete_pending_registration/", methods=["GET"])
+def delete_pending_registration():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		registration_id = request.args.get("registration_id", None);
+
+		query = """
+			DELETE FROM pending_registrations WHERE id = %s
+		""";
+		g.cur.execute(query, [registration_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("pending_registrations")));
+
+@app.route("/users/")
+def users():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	query = """SELECT u.id, u.user_first_name, u.user_last_name, 
+		u.phone_number, u.email_address, u.enabled, 
+		u.username, r.role 
+		FROM users u 
+		INNER JOIN roles r ON u.role_id = r.id;
+		""";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	users = [];
+	for row in rows:
+		users.append({
+			"user_id": row["id"],
+			"user_first_name": row["user_first_name"],
+			"user_last_name": row["user_last_name"],
+			"phone_number": row["phone_number"],
+			"email_address": row["email_address"],
+			"enabled": row["enabled"],
+			"username": row["username"],
+			"role": row["role"]
+		});
+	return render_template("users.html", 
+		users = users,
+		token = get_hash(request.cookies.get("token", None)));
+
+@app.route("/edit_user/", methods=["GET", "POST"])
+def edit_user():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		user_id = request.args.get("user_id", None);
+		if not user_id:
+			return make_response(redirect(url_for("users")));
+
+		query = """
+			SELECT u.id AS user_id, u.user_first_name, u.user_last_name, 
+			u.phone_number, u.email_address, u.enabled, 
+			u.username, r.id AS role_id 
+			FROM users u 
+			INNER JOIN roles r ON u.role_id = r.id
+			WHERE u.id = %s;
+		""";
+		g.cur.execute(query, [user_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(redirect(url_for("users")));
+		user = row;
+
+		role_id = row["role_id"];
+		query = "SELECT id, role FROM roles";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		roles = [];
+		for row in rows:
+			if row["id"] == role_id:
+				roles.append({
+					"role_id": row["id"],
+					"role": row["role"]
+					});
+				break;
+		for row in rows:
+			if row["id"] != role_id:
+				roles.append({
+					"role_id": row["id"],
+					"role": row["role"]
+					});
+		
+		return make_response(render_template("edit_user.html",
+				roles = roles,
+				user = user
+				));
+	elif request.method == "POST":
+		user_id = request.form.get("user_id", None);
+		username = request.form.get("username", None);
+		user_first_name = request.form.get("user_first_name", None);
+		user_last_name = request.form.get("user_last_name", None);
+		phone_number = request.form.get("phone_number", None);
+		email_address = request.form.get("email_address", None);
+		enabled = request.form.get("enabled", False);
+		if enabled == "on":
+			enabled = True;
+		role_id = request.form.get("role", None);
+		if not re.match("[0-9]+", user_id):
+			return make_response(redirect(url_for("users")));
+		if not re.match("[0-9]+", role_id):
+			return make_response(redirect(url_for("users")));
+		
+		if not user_id:
+			return make_response(redirect(url_for("users")));
+
+		query = """
+			SELECT u.id AS user_id, u.user_first_name, u.user_last_name, 
+			u.phone_number, u.email_address, u.enabled, 
+			u.username, r.id AS role_id 
+			FROM users u 
+			INNER JOIN roles r ON u.role_id = r.id
+			WHERE u.id = %s;
+		""";
+		g.cur.execute(query, [user_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(redirect(url_for("users")));
+		user = row;
+
+		role_id = row["role_id"];
+		query = "SELECT id, role FROM roles";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		roles = [];
+		for row in rows:
+			if row["id"] == role_id:
+				roles.append({
+					"role_id": row["id"],
+					"role": row["role"]
+					});
+				break;
+		for row in rows:
+			if row["id"] != role_id:
+				roles.append({
+					"role_id": row["id"],
+					"role": row["role"]
+					});
+		if not re.match("^[A-Z]{1}[a-z]{1,99}$", user_first_name):
+			return make_response(render_template("edit_user.html",
+				roles = roles,
+				user = user,
+				error = u"Имя является обязательным полем"
+				));
+		if not re.match("^[A-Z]{1}[a-z]{1,99}$", user_last_name):
+			return make_response(render_template("edit_user.html",
+				roles = roles,
+				user = user,
+				error = u"Фамилия является обязательным полем"
+				));
+		role_id = request.form.get("role", None);
+		if not re.match("[0-9]+", role_id):
+			return make_response(redirect(url_for("users")));
+		query = """
+			UPDATE users SET user_first_name = %s,
+				user_last_name = %s,
+				phone_number = %s,
+				role_id = %s,
+				enabled = %s
+				WHERE id = %s
+		""";
+		g.cur.execute(query, [user_first_name, user_last_name, phone_number, role_id, enabled, user_id])
+		g.db.commit();
+
+		return make_response(redirect(url_for("users")));
+
+@app.route("/add_user/", methods=["GET", "POST"])
+def add_user():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		query = "SELECT id, role FROM roles";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		roles = [];
+		for row in rows:
+			roles.append({
+				"role_id": row["id"],
+				"role": row["role"]
+			});
+		return make_response(render_template("add_user.html",
+				roles = roles,
+				));
+	elif request.method == "POST":
+		username = request.form.get("username", None);
+		user_first_name = request.form.get("user_first_name", None);
+		user_last_name = request.form.get("user_last_name", None);
+		phone_number = request.form.get("phone_number", None);
+		password = request.form.get("password", None);
+		email_address = request.form.get("email_address", None);
+		enabled = request.form.get("enabled", False);
+		if enabled == "on":
+			enabled = True;
+		else: 
+			enabled = False;
+		query = "SELECT id, role FROM roles";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		roles = [];
+		for row in rows:
+			roles.append({
+				"role_id": row["id"],
+				"role": row["role"]
+			});
+		query = "SELECT * FROM users WHERE username LIKE %s OR email_address LIKE %s";
+		g.cur.execute(query, [username, email_address]);
+		rows = g.cur.fetchall();
+		if len(rows) > 0:
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Пользователь уже существует"
+				));
+		role_id = request.form.get("role", None);
+		if not re.match("[0-9]+", role_id):
+			return make_response(redirect(url_for("users")));
+		if not re.match("^[A-Z]{1}[a-z]{1,99}$", user_first_name):
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Имя является обязательным полем"
+				));
+		if not re.match("^[A-Z]{1}[a-z]{1,99}$", user_last_name):
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Фамилия является обязательным полем"
+				));
+		if not re.match("^[a-z0-9]{4,100}$", username):
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Неверное имя пользователя"
+				));
+		if not re.match("^(?=.*[A-Z]+)(?=.*[a-z]+)(?=.*[0-9]+)(?=.*[$#%]+)", password) or \
+			not re.match("^[a-zA-Z0-9#$%&@]{10,100}$", password):
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Неверный пароль"
+				));
+		if not re.match("^[a-zA-Z0-9._-]+@[a-zA-Z]+\.[a-zA-Z]{2,3}$", email_address):
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Неверный адрес электронной почты"
+				));
+		query = """
+			INSERT INTO geomap.users (user_first_name, 
+				user_last_name, 
+				phone_number, 
+				email_address, 
+				username, 
+				password, 
+				role_id, 
+				enabled) 
+				VALUES(%s, %s, %s, %s, %s, SHA2(CONCAT(%s, %s), 256), %s, %s);
+		""";
+		g.cur.execute(query, [user_first_name, user_last_name, phone_number, email_address, username, password, config["PASSWORD_SALT"], role_id, enabled]);
+		g.db.commit();
+		return make_response(redirect(url_for("users")));
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");
