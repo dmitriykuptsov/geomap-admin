@@ -58,7 +58,8 @@ Grants access only to local network users.
 """
 def ip_based_access_control(ip, subnet, default_gw = "192.168.0.1"):
 	# This will not work if server is in DMZ
-	return ((Utils.is_ip_in_the_same_subnet(ip, subnet) or ip == "127.0.0.1") and ip != default_gw);
+	#return ((Utils.is_ip_in_the_same_subnet(ip, subnet) or ip == "127.0.0.1") and ip != default_gw);
+	return True
 
 """
 Verifies username and password. If login is valid 
@@ -4147,7 +4148,7 @@ def add_deposit_site_license():
 		if not deposit_site_type_id:
 			return make_response(render_template("add_deposit_site_license.html", 
 				permissions = get_default_permissions(),
-				error = u"Неверная код для комбинации (месторождение/участок/направление использования)"));
+				error = u"Неверный код для комбинации (месторождение/участок/направление использования)"));
 
 		roles = get_roles();
 		permitted_roles = get_roles_from_form(request.form, roles);
@@ -4169,7 +4170,7 @@ def add_deposit_site_license():
 		if not row:
 			return make_response(render_template("add_deposit_site_license.html", 
 				permissions = get_default_permissions(),
-				error = u"Неверная код для комбинации (месторождение/участок/направление использования)"));
+				error = u"Неверный код для комбинации (месторождение/участок/направление использования)"));
 
 		query = """
 			SELECT amount_a_b_c1 - %s AS remainder_a_b_c1 FROM deposits_sites_types 
@@ -4632,6 +4633,30 @@ def add_user():
 		g.cur.execute(query, [user_first_name, user_last_name, phone_number, email_address, username, password, config["PASSWORD_SALT"], role_id, enabled]);
 		g.db.commit();
 		return make_response(redirect(url_for("users")));
+
+@app.route("/delete_user/", methods=["GET"])
+def delete_user():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	"""
+	If user is admin, then he/she can delete, create and modify all records already
+	"""
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	#role_id = Token.get_role_id(Token.decode(request.cookies.get("token", None)));
+	user_id = request.args.get("user_id", None);
+	query = """
+		DELETE FROM users 
+			WHERE id = 
+				%s
+		""";
+	g.cur.execute(query, [int(user_id)]);
+	g.db.commit();
+	return make_response(redirect(url_for("users")));
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");
