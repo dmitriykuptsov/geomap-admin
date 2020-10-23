@@ -449,6 +449,23 @@ def get_deposits_sites_by_name(partial_deposit_site_name):
 			});		
 	return sites;
 
+def get_minerals_by_name(partial_mineral_name):
+	partial_mineral_name = "%" + partial_mineral_name + "%";
+	query = """
+		SELECT m.id, m.name_ru FROM minerals m
+			WHERE UPPER(m.name_ru) LIKE UPPER(%s)
+				ORDER BY m.name_ru ASC
+	"""
+	g.cur.execute(query, [partial_mineral_name]);
+	rows = g.cur.fetchall();
+	minerals = [];
+	for row in rows:
+		minerals.append({
+			"id": row["id"],
+			"name": row["name_ru"]
+			});		
+	return minerals;
+
 def get_deposits_sites_types_by_name(partial_deposit_site_name):
 	partial_deposit_site_name = "%" + partial_deposit_site_name + "%";
 	query = """
@@ -887,6 +904,17 @@ def get_resource_id_for_amount_unit(amount_unit_id):
 		return None;
 	return row["resource_id"];
 
+def get_resource_id_for_investment(investment_id):
+	query = """
+		SELECT resource_id FROM investments
+			WHERE id = %s
+	""";
+	g.cur.execute(query, [investment_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];
+
 def get_resource_id_for_site(site_id):
 	query = """
 		SELECT resource_id FROM sites
@@ -1209,6 +1237,7 @@ def login():
 			expire_date = datetime.datetime.utcnow() + \
 				datetime.timedelta(seconds=config["MAX_SESSION_DURATION_IN_SECONDS"])
 			random_token = Utils.token_hex();
+
 			response = make_response(redirect(url_for('areas')));
 			response.set_cookie(
 				"token", 
@@ -3544,6 +3573,19 @@ def get_deposits_sites_ajax():
 	else:
 		return jsonify([]);
 
+@app.route("/get_minerals_ajax/", methods=["GET"])
+def get_minerals_ajax():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return jsonify([]);
+	if not is_valid_session(request.cookies.get("token", None)):
+		return jsonify([]);
+	if not is_admin(request.cookies.get("token", None)):
+		return jsonify([]);
+	if request.method == "GET":
+		partial_mineral_name = request.args.get("partial_mineral_name", "");
+		return jsonify(get_minerals_by_name(partial_mineral_name));
+	else:
+		return jsonify([]);
 
 @app.route("/get_areas_ajax/", methods=["GET"])
 def get_areas_ajax():
@@ -4657,6 +4699,227 @@ def delete_user():
 	g.cur.execute(query, [int(user_id)]);
 	g.db.commit();
 	return make_response(redirect(url_for("users")));
+
+@app.route("/investments/")
+def investments():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	query = """
+		SELECT i.id, d.name_ru AS deposit, s.name_ru AS site, m.name_ru AS mineral, i.area_ha
+		FROM investments i 
+		INNER JOIN deposits_sites ds ON ds.id = i.deposit_site_id
+		INNER JOIN minerals m ON m.id = i.mineral_id
+		INNER JOIN deposits d ON d.id = ds.deposit_id
+		INNER JOIN sites s ON s.id = ds.site_id
+		"""
+	investments = [];
+	g.cur.execute(query, []);
+	rows = g.cur.fetchall();
+	for row in rows:
+		investments.append({
+			"id": row["id"],
+			"deposit": row["deposit"],
+			"site": row["site"],
+			"mineral": row["mineral"],
+			"area_ha": row["area_ha"]
+			});
+	return make_response(render_template("investments.html", investments = investments, token = get_hash(request.cookies.get("token", None))));
+
+@app.route("/add_investment/", methods=["GET", "POST"])
+def add_investment():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return make_response(render_template("add_investment.html", permissions = get_default_permissions()));
+	else:
+		deposit_site_id = request.form.get("deposit_site_id", None);
+		mineral_id = request.form.get("mineral_id", None);
+		area_ha = request.form.get("area_ha", None);
+		external_url = request.form.get("external_url", None);
+
+		presentation = request.files["presentation"];
+		description = request.files["description"];
+		
+		query = "SELECT * FROM minerals WHERE id = %s";
+		g.cur.execute(query, [mineral_id]);
+		rows = g.cur.fetchall();
+		print(g.cur._last_executed);
+
+		if len(rows) != 1:
+			return make_response(render_template("add_investment.html", permissions = get_default_permissions(), error = u"Неверное значение полезного ископаемого"));
+
+		query = "SELECT * FROM deposits_sites WHERE id = %s";
+		g.cur.execute(query, [deposit_site_id]);
+		rows = g.cur.fetchall();
+
+		if len(rows) != 1:
+			return make_response(render_template("add_investment.html", permissions = get_default_permissions(), error = u"Неверное значение месторождения"));
+
+		if not re.match("^[0-9]*\.?[0-9]+", area_ha):
+			return make_response(render_template("add_investment.html", permissions = get_default_permissions(), error = u"Неверное значение для площади"));
+
+		uuid = get_uuid();
+		
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+
+		presentation_uuid = get_uuid();
+		description_uuid = get_uuid();
+
+		if presentation:
+			fh = open(config["FILE_STORAGE_DIR"] + "/" + presentation_uuid + ".pdf", "w+");
+			fh.write(presentation.read());
+			fh.close();
+
+		if description:
+			fh = open(config["FILE_STORAGE_DIR"] + "/" + description_uuid + ".pdf", "w+");
+			fh.write(description.read());
+			fh.close();
+
+		query = """
+			INSERT INTO investments(
+				deposit_site_id, 
+				mineral_id, 
+				area_ha, 
+				presentation_url_ru,
+				description_url_ru, 
+				external_url,
+				resource_id)
+			VALUES(
+				%s, %s, %s, %s, %s, %s,
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [deposit_site_id, mineral_id, area_ha, presentation_uuid + ".pdf", description_uuid + ".pdf", external_url, uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("investments")));
+
+@app.route("/edit_investment/", methods=["GET", "POST"])
+def edit_investment():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		investment_id = request.args.get("investment_id", None);
+		resource_id = get_resource_id_for_investment(investment_id);
+		query = """
+			SELECT CONCAT(d.name_ru, ' ', s.name_ru) AS deposit, 
+				m.name_ru AS mineral, 
+				i.area_ha, i.external_url, i.resource_id, i.id
+				FROM investments i 
+				INNER JOIN deposits_sites ds ON ds.id = i.deposit_site_id
+				INNER JOIN deposits d ON d.id = ds.deposit_id
+				INNER JOIN sites s ON s.id = ds.site_id
+				INNER JOIN minerals m ON m.id = i.mineral_id
+				WHERE i.id = %s
+		""";
+		g.cur.execute(query, [investment_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(redirect(url_for("investments")));
+		return make_response(render_template("edit_investment.html",
+				permissions = get_permissions(resource_id), 
+				investment_id = investment_id,
+				deposit = row["deposit"],
+				mineral = row["mineral"],
+				area_ha = row["area_ha"],
+				external_url = row["external_url"]
+				));
+	else:
+		investment_id = request.form.get("investment_id", None);
+		area_ha = request.form.get("area_ha", None);
+		external_url = request.form.get("external_url", None);
+
+		if not re.match("^[0-9]*\.?[0-9]+", area_ha):
+			resource_id = get_resource_id_for_investment(investment_id);
+			query = """
+				SELECT CONCAT(d.name_ru, ' ', s.name_ru) AS deposit, 
+					m.name_ru AS mineral, 
+					i.area_ha, i.external_url, i.resource_id, i.id
+					FROM investments i 
+					INNER JOIN deposits_sites ds ON ds.id = i.deposit_site_id
+					INNER JOIN deposits d ON d.id = ds.deposit_id
+					INNER JOIN sites s ON s.id = ds.site_id
+					INNER JOIN minerals m ON m.id = i.mineral_id
+					WHERE i.id = %s
+			""";
+			g.cur.execute(query, [investment_id]);
+			row = g.cur.fetchone();
+			if not row:
+				return make_response(redirect(url_for("investments")));
+			return make_response(render_template("edit_investment.html",
+					permissions = get_permissions(resource_id), 
+					investment_id = investment_id,
+					deposit = row["deposit"],
+					mineral = row["mineral"],
+					area_ha = row["area_ha"],
+					external_url = row["external_url"],
+					error = u"Неверное значение для площади"
+					));
+
+		query = "UPDATE investments SET area_ha = %s, external_url = %s WHERE id = %s";
+		g.cur.execute(query, [area_ha, external_url, investment_id]);
+		g.db.commit();
+
+		presentation = request.files["presentation"];
+		description = request.files["description"];
+
+		presentation_uuid = get_uuid();
+		description_uuid = get_uuid();
+
+		if presentation:
+			fh = open(config["FILE_STORAGE_DIR"] + "/" + presentation_uuid + ".pdf", "w+");
+			fh.write(presentation.read());
+			fh.close();
+			
+			query = "UPDATE investments SET presentation_url_ru = %s WHERE id = %s";
+			g.cur.execute(query, [presentation_uuid + ".pdf", investment_id]);
+			g.db.commit();
+
+		if description:
+			fh = open(config["FILE_STORAGE_DIR"] + "/" + description_uuid + ".pdf", "w+");
+			fh.write(description.read());
+			fh.close();
+
+			query = "UPDATE investments SET description_url_ru = %s WHERE id = %s";
+			g.cur.execute(query, [description_uuid + ".pdf", investment_id]);
+			g.db.commit();
+
+		return make_response(redirect(url_for("investments")));
+
+
+@app.route("/delete_investment/")
+def delete_investment():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	investment_id = request.args.get("investment_id", None);
+	query = """
+			DELETE FROM resources 
+				WHERE id = (SELECT resource_id FROM investments WHERE id = %s)
+		""";
+	g.cur.execute(query, [investment_id]);
+	g.db.commit();
+	return make_response(redirect(url_for("investments")));
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");

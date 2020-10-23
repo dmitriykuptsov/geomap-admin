@@ -2,11 +2,13 @@
 <html lang="ru-RU">
 	<head>
 		<title>Административная страница</title>
-		<meta charset="utf-8" /> 
+		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 		<script src="{{ url_for('static', filename='js/jquery-3.5.0.min.js') }}"></script>
 		<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+		<script src="{{ url_for('static', filename='js/jquery.dataTables.min.js') }}"></script>		
+		<script src="{{ url_for('static', filename='js/dataTables.bootstrap4.min.js') }}"></script>		
 		<style>
 			.wrapper {
 				display: flex;
@@ -97,6 +99,41 @@
 				background-color: white;
 			}
 		</style>
+		<script type="text/javascript">
+			$(document).ready(function() {
+				$('#dt').DataTable({
+					language: {
+						"processing": "Подождите...",
+						"search": "Поиск:",
+						"lengthMenu": "Показать _MENU_ записей",
+						"info": "Записи с _START_ до _END_ из _TOTAL_ записей",
+						"infoEmpty": "Записи с 0 до 0 из 0 записей",
+						"infoFiltered": "(отфильтровано из _MAX_ записей)",
+						"infoPostFix": "",
+						"loadingRecords": "Загрузка записей...",
+						"zeroRecords": "Записи отсутствуют.",
+						"emptyTable": "В таблице отсутствуют данные",
+						"paginate": {
+							"first": "Первая",
+							"previous": "Предыдущая",
+							"next": "Следующая",
+							"last": "Последняя"
+						},
+						"aria": {
+							"sortAscending": ": активировать для сортировки столбца по возрастанию",
+							"sortDescending": ": активировать для сортировки столбца по убыванию"
+						},
+						"select": {
+							"rows": {
+								"_": "Выбрано записей: %d",
+								"0": "Кликните по записи для выбора",
+								"1": "Выбрана одна запись"
+							}
+						}
+					}
+				});
+			});
+		</script>
 	</head>
 	<body>
 		<div class="header">
@@ -128,7 +165,7 @@
 					<li>
 						<a href="/minerals/">Полезные ископаемые</a>
 					</li>
-					<li class="active">
+					<li>
 						<a href="/deposit_statuses/">Статусы</a>
 					</li>
 					<li>
@@ -155,7 +192,7 @@
 					<li>
 						<a href="/deposits_sites_contours/">Контуры месторождений и участков</a>
 					</li>
-					<li>
+					<li class="active">
 						<a href="/investments/">Инвестиции</a>
 					</li>
 					<hr>
@@ -166,46 +203,43 @@
 						<a href="/users/">Пользователи</a>
 					</li>
 				</ul>
-			</nav>
-			<div class="container" style="margin-top: 10px">	
+			</nav>	
+			<div class="container">
 				<div class="row">
-					<div class="col-sm-12">
-						<form action="/add_deposit_status/" method="post">
-							<div class="form-group">
-								<input type="text" name="deposit_status" 
-									class="form-control" 
-									placeholder="Введите статус">
-							</div>
-							<div class="form-group">
-								<span>Разрешение на чтение</span>
-							</div>
-							{% for permission in permissions %}
-								{% if permission["granted"] %}
-									<div class="form-group">
-										<input type="checkbox" 
-											checked 
-											name="{{permission["role"]}}">
-									{{permission["role"]}}
-									</div>
-								{% else %}
-									<div class="form-group">
-										<input type="checkbox" 
-										name="{{permission["role"]}}">{{permission["role"]}}
-									</div>
-								{% endif %}
-							{% endfor %}
-							<div class="form-group">
-								<button type="submit" class="btn btn-primary form-control">Сохранить</button>
-							</div>
-							{% if error %}
-								<div class="form-group">
-									<div class="alert alert-danger" role="alert">
-										<span>{{ error }}</span>
-									</div>
-								</div>
-							{% endif %}
-						</form>
-					</div>
+				<div class="col-sm-12">
+					<form>
+						<div class="form-group">
+							<a href="/add_investment/">Добавить</a><br/>
+						</div>
+						<div class="form-group">
+							<table class="table" id="dt">
+								<thead class="thead-dark">
+									<tr>
+										<th>Месторождение</th>
+										<th>Участок</th>
+										<th>Полезное ископаемое</th>
+										<th>Площадь</th>
+										<th>Действие</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for investment in investments %}
+									<tr>
+										<td>{{ investment.deposit }}</td>
+										<td>{{ investment.site }}</td>
+										<td>{{ investment.mineral }}</td>
+										<td>{{ investment.area_ha }}</td>
+										<td>
+											<a href="/delete_investment?investment_id={{ investment.id }}&token={{token}}">Удалить</a>
+											<a href="/edit_investment?investment_id={{ investment.id }}">Редактировать</a>
+										</td>
+									</tr>
+									{% endfor %}
+								</tbody>
+							</table>
+						</div>
+					</form>
+				</div>
 				</div>
 			</div>
 		</div>
