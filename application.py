@@ -58,7 +58,8 @@ Grants access only to local network users.
 """
 def ip_based_access_control(ip, subnet, default_gw = "192.168.0.1"):
 	# This will not work if server is in DMZ
-	return ((Utils.is_ip_in_the_same_subnet(ip, subnet) or ip == "127.0.0.1") and ip != default_gw);
+	#return ((Utils.is_ip_in_the_same_subnet(ip, subnet) or ip == "127.0.0.1") and ip != default_gw);
+	return True
 
 """
 Verifies username and password. If login is valid 
@@ -448,6 +449,23 @@ def get_deposits_sites_by_name(partial_deposit_site_name):
 			});		
 	return sites;
 
+def get_minerals_by_name(partial_mineral_name):
+	partial_mineral_name = "%" + partial_mineral_name + "%";
+	query = """
+		SELECT m.id, m.name_ru FROM minerals m
+			WHERE UPPER(m.name_ru) LIKE UPPER(%s)
+				ORDER BY m.name_ru ASC
+	"""
+	g.cur.execute(query, [partial_mineral_name]);
+	rows = g.cur.fetchall();
+	minerals = [];
+	for row in rows:
+		minerals.append({
+			"id": row["id"],
+			"name": row["name_ru"]
+			});		
+	return minerals;
+
 def get_deposits_sites_types_by_name(partial_deposit_site_name):
 	partial_deposit_site_name = "%" + partial_deposit_site_name + "%";
 	query = """
@@ -579,6 +597,43 @@ def get_deposits_sites_licenses():
 			"license": row["license"]
 			});
 	return deposits_sites_licenses;
+
+def get_deposits_sites_contours():
+	query = "SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));";
+	g.cur.execute(query);
+	query = """
+		SELECT dsc.deposit_site_type_id, d.name_ru AS deposit_name, s.name_ru as site_name, 
+			(SELECT dtdt.name_ru FROM deposit_types dtdt 
+				WHERE dtdt.kind_id = dt.kind_id AND dtdt.group_id = 0 AND dtdt.type_id = 0 AND dtdt.subtype_id = 0) AS kind_name, 
+			(SELECT dtdt.name_ru FROM deposit_types dtdt 
+				WHERE dtdt.kind_id = dt.kind_id AND dtdt.group_id = dt.group_id AND dtdt.type_id = 0 AND dtdt.subtype_id = 0) AS group_name, 
+			(SELECT dtdt.name_ru FROM deposit_types dtdt 
+				WHERE dtdt.kind_id = dt.kind_id AND dtdt.group_id = dt.group_id AND dtdt.type_id = dt.type_id AND dtdt.subtype_id = 0) AS type_name,
+			m.name_ru AS mineral_name
+		FROM deposit_site_contours dsc
+		INNER JOIN deposits_sites_types dst ON dst.id = dsc.deposit_site_type_id 
+		INNER JOIN deposits_sites ds ON ds.id = dst.deposit_site_id 
+		INNER JOIN deposits d ON d.id = ds.deposit_id 
+		INNER JOIN sites s ON s.id = ds.site_id 
+		INNER JOIN minerals m ON m.id = dst.minerals_id
+		INNER JOIN deposit_types dt ON dt.id = dst.type_group_id
+		GROUP BY dsc.deposit_site_type_id;
+	""";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	deposits_sites_contours = [];
+	print(len(rows));
+	for row in rows:
+		deposits_sites_contours.append({
+			"deposit_site_type_id": row["deposit_site_type_id"],
+			"deposit_name": row["deposit_name"],
+			"site_name": row["site_name"],
+			"kind_name": row["kind_name"],
+			"group_name": row["group_name"],
+			"type_name": row["type_name"],
+			"mineral_name": row["mineral_name"]
+			});
+	return deposits_sites_contours;
 
 """
 Returns area
@@ -844,6 +899,17 @@ def get_resource_id_for_amount_unit(amount_unit_id):
 			WHERE id = %s
 	""";
 	g.cur.execute(query, [amount_unit_id]);
+	row = g.cur.fetchone();
+	if not row:
+		return None;
+	return row["resource_id"];
+
+def get_resource_id_for_investment(investment_id):
+	query = """
+		SELECT resource_id FROM investments
+			WHERE id = %s
+	""";
+	g.cur.execute(query, [investment_id]);
 	row = g.cur.fetchone();
 	if not row:
 		return None;
@@ -1171,6 +1237,7 @@ def login():
 			expire_date = datetime.datetime.utcnow() + \
 				datetime.timedelta(seconds=config["MAX_SESSION_DURATION_IN_SECONDS"])
 			random_token = Utils.token_hex();
+
 			response = make_response(redirect(url_for('areas')));
 			response.set_cookie(
 				"token", 
@@ -3506,6 +3573,19 @@ def get_deposits_sites_ajax():
 	else:
 		return jsonify([]);
 
+@app.route("/get_minerals_ajax/", methods=["GET"])
+def get_minerals_ajax():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return jsonify([]);
+	if not is_valid_session(request.cookies.get("token", None)):
+		return jsonify([]);
+	if not is_admin(request.cookies.get("token", None)):
+		return jsonify([]);
+	if request.method == "GET":
+		partial_mineral_name = request.args.get("partial_mineral_name", "");
+		return jsonify(get_minerals_by_name(partial_mineral_name));
+	else:
+		return jsonify([]);
 
 @app.route("/get_areas_ajax/", methods=["GET"])
 def get_areas_ajax():
@@ -4110,7 +4190,7 @@ def add_deposit_site_license():
 		if not deposit_site_type_id:
 			return make_response(render_template("add_deposit_site_license.html", 
 				permissions = get_default_permissions(),
-				error = u"Неверная код для комбинации (месторождение/участок/направление использования)"));
+				error = u"Неверный код для комбинации (месторождение/участок/направление использования)"));
 
 		roles = get_roles();
 		permitted_roles = get_roles_from_form(request.form, roles);
@@ -4132,7 +4212,7 @@ def add_deposit_site_license():
 		if not row:
 			return make_response(render_template("add_deposit_site_license.html", 
 				permissions = get_default_permissions(),
-				error = u"Неверная код для комбинации (месторождение/участок/направление использования)"));
+				error = u"Неверный код для комбинации (месторождение/участок/направление использования)"));
 
 		query = """
 			SELECT amount_a_b_c1 - %s AS remainder_a_b_c1 FROM deposits_sites_types 
@@ -4187,6 +4267,659 @@ def add_deposit_site_license():
 		g.cur.execute(query, [deposit_site_type_id, license_id, amount_a_b_c1, amount_c2, uuid]);
 		g.db.commit();
 		return make_response(redirect(url_for("deposits_sites_licences")));
+
+@app.route("/deposits_sites_contours/", methods=["GET"])
+def deposits_sites_contours():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		dsc = get_deposits_sites_contours();
+		return make_response(render_template("deposits_sites_contours.html", 
+				deposits_sites_contours = dsc,
+				token = get_hash(request.cookies.get("token", None))
+				));
+
+@app.route("/add_deposit_site_contour/", methods=["GET", "POST"])
+def add_deposit_site_contour():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return render_template("add_deposit_site_contour.html", 
+			permissions = get_default_permissions(), 
+			error = None);
+	elif request.method == "POST":
+		deposit_site_type_id = request.form.get("deposit_site_type_id", None);
+		points = request.form.getlist("point_number", None);
+		lats = request.form.getlist("lat", None);
+		lons = request.form.getlist("lon", None);
+		if len(points) != len(lons) or len(points) != len(lats):
+			return render_template("add_deposit_site_contour.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверное количество точек");
+		for i in range(0, len(points)):
+			if not re.match("[0-9]+", points[i]):
+				return render_template("add_deposit_site_contour.html", 
+					permissions = get_default_permissions(), 
+					error = u"Неверный номер точки");
+			if not re.match("[0-9]+\.[0-9]+", lats[i]):
+				return render_template("add_deposit_site_contour.html", 
+					permissions = get_default_permissions(), 
+					error = u"Неверное значение для широты");
+			if not re.match("[0-9]+\.[0-9]+", lons[i]):
+				return render_template("add_deposit_site_contour.html", 
+					permissions = get_default_permissions(), 
+					error = u"Неверное значение для долготы");
+		query = "SELECT * FROM deposits_sites_types WHERE id = %s";
+		g.cur.execute(query, [deposit_site_type_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return render_template("add_deposit_site_contour.html", 
+				permissions = get_default_permissions(), 
+				error = u"Неверное идентификатор месторождения/участок/ПИ");
+		query = "SELECT * FROM deposit_site_contours WHERE deposit_site_type_id = %s";
+		g.cur.execute(query, [deposit_site_type_id]);
+		row = g.cur.fetchone();
+		if row:
+			return render_template("add_deposit_site_contour.html", 
+				permissions = get_default_permissions(), 
+				error = u"Контур уже существует");
+		query = "DELETE FROM deposit_site_contours WHERE deposit_site_type_id = %s";
+		g.cur.execute(query, [deposit_site_type_id]);
+		for i in range(0, len(points)):
+			roles = get_roles();
+			permitted_roles = get_roles_from_form(request.form, roles);
+			uuid = get_uuid();
+			add_resource(uuid);
+			add_read_permissions(permitted_roles, uuid);
+			query = """
+				INSERT INTO deposit_site_contours(
+					deposit_site_type_id, 
+					latitude, 
+					longitude, 
+					point_number, 
+					resource_id)
+				VALUES(
+					%s, %s, %s, %s,
+					(SELECT id FROM resources WHERE name = %s)
+				)
+			""";
+			g.cur.execute(query, [deposit_site_type_id, lats[i], lons[i], points[i], uuid]);
+			g.db.commit();
+		return make_response(redirect(url_for("deposits_sites_contours")));
+
+@app.route("/delete_deposit_site_contour/", methods=["GET"])
+def delete_deposit_site_contour():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		deposit_site_type_id = request.args.get("deposit_site_type_id", None);
+
+		query = """
+			DELETE FROM resources 
+				WHERE id IN (SELECT resource_id FROM deposit_site_contours WHERE deposit_site_type_id = %s)
+		""";
+		g.cur.execute(query, [deposit_site_type_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("deposits_sites_contours")));
+
+@app.route("/pending_registrations/")
+def pending_registrations():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	query = "SELECT id, user_first_name, user_last_name, phone_number, email_address, description FROM pending_registrations";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	pending_registrations = [];
+	for row in rows:
+		pending_registrations.append({
+			"registration_id": row["id"],
+			"first_name": row["user_first_name"],
+			"last_name": row["user_last_name"],
+			"phone_number": row["phone_number"],
+			"email_address": row["email_address"],
+			"description": row["description"],
+		});
+	return render_template("pending_registrations.html", 
+		pending_registrations = pending_registrations,
+		token = get_hash(request.cookies.get("token", None)));
+
+@app.route("/delete_pending_registration/", methods=["GET"])
+def delete_pending_registration():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		registration_id = request.args.get("registration_id", None);
+
+		query = """
+			DELETE FROM pending_registrations WHERE id = %s
+		""";
+		g.cur.execute(query, [registration_id]);
+		g.db.commit();
+		return make_response(redirect(url_for("pending_registrations")));
+
+@app.route("/users/")
+def users():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	query = """SELECT u.id, u.user_first_name, u.user_last_name, 
+		u.phone_number, u.email_address, u.enabled, 
+		u.username, r.role 
+		FROM users u 
+		INNER JOIN roles r ON u.role_id = r.id;
+		""";
+	g.cur.execute(query);
+	rows = g.cur.fetchall();
+	users = [];
+	for row in rows:
+		users.append({
+			"user_id": row["id"],
+			"user_first_name": row["user_first_name"],
+			"user_last_name": row["user_last_name"],
+			"phone_number": row["phone_number"],
+			"email_address": row["email_address"],
+			"enabled": row["enabled"],
+			"username": row["username"],
+			"role": row["role"]
+		});
+	return render_template("users.html", 
+		users = users,
+		token = get_hash(request.cookies.get("token", None)));
+
+@app.route("/edit_user/", methods=["GET", "POST"])
+def edit_user():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		user_id = request.args.get("user_id", None);
+		if not user_id:
+			return make_response(redirect(url_for("users")));
+
+		query = """
+			SELECT u.id AS user_id, u.user_first_name, u.user_last_name, 
+			u.phone_number, u.email_address, u.enabled, 
+			u.username, r.id AS role_id 
+			FROM users u 
+			INNER JOIN roles r ON u.role_id = r.id
+			WHERE u.id = %s;
+		""";
+		g.cur.execute(query, [user_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(redirect(url_for("users")));
+		user = row;
+
+		role_id = row["role_id"];
+		query = "SELECT id, role FROM roles";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		roles = [];
+		for row in rows:
+			if row["id"] == role_id:
+				roles.append({
+					"role_id": row["id"],
+					"role": row["role"]
+					});
+				break;
+		for row in rows:
+			if row["id"] != role_id:
+				roles.append({
+					"role_id": row["id"],
+					"role": row["role"]
+					});
+		
+		return make_response(render_template("edit_user.html",
+				roles = roles,
+				user = user
+				));
+	elif request.method == "POST":
+		user_id = request.form.get("user_id", None);
+		username = request.form.get("username", None);
+		user_first_name = request.form.get("user_first_name", None);
+		user_last_name = request.form.get("user_last_name", None);
+		phone_number = request.form.get("phone_number", None);
+		email_address = request.form.get("email_address", None);
+		enabled = request.form.get("enabled", False);
+		if enabled == "on":
+			enabled = True;
+		role_id = request.form.get("role", None);
+		if not re.match("[0-9]+", user_id):
+			return make_response(redirect(url_for("users")));
+		if not re.match("[0-9]+", role_id):
+			return make_response(redirect(url_for("users")));
+		
+		if not user_id:
+			return make_response(redirect(url_for("users")));
+
+		query = """
+			SELECT u.id AS user_id, u.user_first_name, u.user_last_name, 
+			u.phone_number, u.email_address, u.enabled, 
+			u.username, r.id AS role_id 
+			FROM users u 
+			INNER JOIN roles r ON u.role_id = r.id
+			WHERE u.id = %s;
+		""";
+		g.cur.execute(query, [user_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(redirect(url_for("users")));
+		user = row;
+
+		role_id = row["role_id"];
+		query = "SELECT id, role FROM roles";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		roles = [];
+		for row in rows:
+			if row["id"] == role_id:
+				roles.append({
+					"role_id": row["id"],
+					"role": row["role"]
+					});
+				break;
+		for row in rows:
+			if row["id"] != role_id:
+				roles.append({
+					"role_id": row["id"],
+					"role": row["role"]
+					});
+		if not re.match("^[A-Z]{1}[a-z]{1,99}$", user_first_name):
+			return make_response(render_template("edit_user.html",
+				roles = roles,
+				user = user,
+				error = u"Имя является обязательным полем"
+				));
+		if not re.match("^[A-Z]{1}[a-z]{1,99}$", user_last_name):
+			return make_response(render_template("edit_user.html",
+				roles = roles,
+				user = user,
+				error = u"Фамилия является обязательным полем"
+				));
+		role_id = request.form.get("role", None);
+		if not re.match("[0-9]+", role_id):
+			return make_response(redirect(url_for("users")));
+		query = """
+			UPDATE users SET user_first_name = %s,
+				user_last_name = %s,
+				phone_number = %s,
+				role_id = %s,
+				enabled = %s
+				WHERE id = %s
+		""";
+		g.cur.execute(query, [user_first_name, user_last_name, phone_number, role_id, enabled, user_id])
+		g.db.commit();
+
+		return make_response(redirect(url_for("users")));
+
+@app.route("/add_user/", methods=["GET", "POST"])
+def add_user():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		query = "SELECT id, role FROM roles";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		roles = [];
+		for row in rows:
+			roles.append({
+				"role_id": row["id"],
+				"role": row["role"]
+			});
+		return make_response(render_template("add_user.html",
+				roles = roles,
+				));
+	elif request.method == "POST":
+		username = request.form.get("username", None);
+		user_first_name = request.form.get("user_first_name", None);
+		user_last_name = request.form.get("user_last_name", None);
+		phone_number = request.form.get("phone_number", None);
+		password = request.form.get("password", None);
+		email_address = request.form.get("email_address", None);
+		enabled = request.form.get("enabled", False);
+		if enabled == "on":
+			enabled = True;
+		else: 
+			enabled = False;
+		query = "SELECT id, role FROM roles";
+		g.cur.execute(query);
+		rows = g.cur.fetchall();
+		roles = [];
+		for row in rows:
+			roles.append({
+				"role_id": row["id"],
+				"role": row["role"]
+			});
+		query = "SELECT * FROM users WHERE username LIKE %s OR email_address LIKE %s";
+		g.cur.execute(query, [username, email_address]);
+		rows = g.cur.fetchall();
+		if len(rows) > 0:
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Пользователь уже существует"
+				));
+		role_id = request.form.get("role", None);
+		if not re.match("[0-9]+", role_id):
+			return make_response(redirect(url_for("users")));
+		if not re.match("^[A-Z]{1}[a-z]{1,99}$", user_first_name):
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Имя является обязательным полем"
+				));
+		if not re.match("^[A-Z]{1}[a-z]{1,99}$", user_last_name):
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Фамилия является обязательным полем"
+				));
+		if not re.match("^[a-z0-9]{4,100}$", username):
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Неверное имя пользователя"
+				));
+		if not re.match("^(?=.*[A-Z]+)(?=.*[a-z]+)(?=.*[0-9]+)(?=.*[$#%]+)", password) or \
+			not re.match("^[a-zA-Z0-9#$%&@]{10,100}$", password):
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Неверный пароль"
+				));
+		if not re.match("^[a-zA-Z0-9._-]+@[a-zA-Z]+\.[a-zA-Z]{2,3}$", email_address):
+			return make_response(render_template("add_user.html",
+				roles = roles,
+				error = u"Неверный адрес электронной почты"
+				));
+		query = """
+			INSERT INTO geomap.users (user_first_name, 
+				user_last_name, 
+				phone_number, 
+				email_address, 
+				username, 
+				password, 
+				role_id, 
+				enabled) 
+				VALUES(%s, %s, %s, %s, %s, SHA2(CONCAT(%s, %s), 256), %s, %s);
+		""";
+		g.cur.execute(query, [user_first_name, user_last_name, phone_number, email_address, username, password, config["PASSWORD_SALT"], role_id, enabled]);
+		g.db.commit();
+		return make_response(redirect(url_for("users")));
+
+@app.route("/delete_user/", methods=["GET"])
+def delete_user():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	"""
+	If user is admin, then he/she can delete, create and modify all records already
+	"""
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	#role_id = Token.get_role_id(Token.decode(request.cookies.get("token", None)));
+	user_id = request.args.get("user_id", None);
+	query = """
+		DELETE FROM users 
+			WHERE id = 
+				%s
+		""";
+	g.cur.execute(query, [int(user_id)]);
+	g.db.commit();
+	return make_response(redirect(url_for("users")));
+
+@app.route("/investments/")
+def investments():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	query = """
+		SELECT i.id, d.name_ru AS deposit, s.name_ru AS site, m.name_ru AS mineral, i.area_ha
+		FROM investments i 
+		INNER JOIN deposits_sites ds ON ds.id = i.deposit_site_id
+		INNER JOIN minerals m ON m.id = i.mineral_id
+		INNER JOIN deposits d ON d.id = ds.deposit_id
+		INNER JOIN sites s ON s.id = ds.site_id
+		"""
+	investments = [];
+	g.cur.execute(query, []);
+	rows = g.cur.fetchall();
+	for row in rows:
+		investments.append({
+			"id": row["id"],
+			"deposit": row["deposit"],
+			"site": row["site"],
+			"mineral": row["mineral"],
+			"area_ha": row["area_ha"]
+			});
+	return make_response(render_template("investments.html", investments = investments, token = get_hash(request.cookies.get("token", None))));
+
+@app.route("/add_investment/", methods=["GET", "POST"])
+def add_investment():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		return make_response(render_template("add_investment.html", permissions = get_default_permissions()));
+	else:
+		deposit_site_id = request.form.get("deposit_site_id", None);
+		mineral_id = request.form.get("mineral_id", None);
+		area_ha = request.form.get("area_ha", None);
+		external_url = request.form.get("external_url", None);
+
+		presentation = request.files["presentation"];
+		description = request.files["description"];
+		
+		query = "SELECT * FROM minerals WHERE id = %s";
+		g.cur.execute(query, [mineral_id]);
+		rows = g.cur.fetchall();
+		print(g.cur._last_executed);
+
+		if len(rows) != 1:
+			return make_response(render_template("add_investment.html", permissions = get_default_permissions(), error = u"Неверное значение полезного ископаемого"));
+
+		query = "SELECT * FROM deposits_sites WHERE id = %s";
+		g.cur.execute(query, [deposit_site_id]);
+		rows = g.cur.fetchall();
+
+		if len(rows) != 1:
+			return make_response(render_template("add_investment.html", permissions = get_default_permissions(), error = u"Неверное значение месторождения"));
+
+		if not re.match("^[0-9]*\.?[0-9]+", area_ha):
+			return make_response(render_template("add_investment.html", permissions = get_default_permissions(), error = u"Неверное значение для площади"));
+
+		uuid = get_uuid();
+		
+		roles = get_roles();
+		permitted_roles = get_roles_from_form(request.form, roles);
+		
+		add_resource(uuid);
+		add_read_permissions(permitted_roles, uuid);
+
+		presentation_uuid = get_uuid();
+		description_uuid = get_uuid();
+
+		if presentation:
+			fh = open(config["FILE_STORAGE_DIR"] + "/" + presentation_uuid + ".pdf", "w+");
+			fh.write(presentation.read());
+			fh.close();
+
+		if description:
+			fh = open(config["FILE_STORAGE_DIR"] + "/" + description_uuid + ".pdf", "w+");
+			fh.write(description.read());
+			fh.close();
+
+		query = """
+			INSERT INTO investments(
+				deposit_site_id, 
+				mineral_id, 
+				area_ha, 
+				presentation_url_ru,
+				description_url_ru, 
+				external_url,
+				resource_id)
+			VALUES(
+				%s, %s, %s, %s, %s, %s,
+				(SELECT id FROM resources WHERE name = %s)
+			)
+		""";
+		g.cur.execute(query, [deposit_site_id, mineral_id, area_ha, presentation_uuid + ".pdf", description_uuid + ".pdf", external_url, uuid]);
+		g.db.commit();
+		return make_response(redirect(url_for("investments")));
+
+@app.route("/edit_investment/", methods=["GET", "POST"])
+def edit_investment():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if request.method == "GET":
+		investment_id = request.args.get("investment_id", None);
+		resource_id = get_resource_id_for_investment(investment_id);
+		query = """
+			SELECT CONCAT(d.name_ru, ' ', s.name_ru) AS deposit, 
+				m.name_ru AS mineral, 
+				i.area_ha, i.external_url, i.resource_id, i.id
+				FROM investments i 
+				INNER JOIN deposits_sites ds ON ds.id = i.deposit_site_id
+				INNER JOIN deposits d ON d.id = ds.deposit_id
+				INNER JOIN sites s ON s.id = ds.site_id
+				INNER JOIN minerals m ON m.id = i.mineral_id
+				WHERE i.id = %s
+		""";
+		g.cur.execute(query, [investment_id]);
+		row = g.cur.fetchone();
+		if not row:
+			return make_response(redirect(url_for("investments")));
+		return make_response(render_template("edit_investment.html",
+				permissions = get_permissions(resource_id), 
+				investment_id = investment_id,
+				deposit = row["deposit"],
+				mineral = row["mineral"],
+				area_ha = row["area_ha"],
+				external_url = row["external_url"]
+				));
+	else:
+		investment_id = request.form.get("investment_id", None);
+		area_ha = request.form.get("area_ha", None);
+		external_url = request.form.get("external_url", None);
+
+		if not re.match("^[0-9]*\.?[0-9]+", area_ha):
+			resource_id = get_resource_id_for_investment(investment_id);
+			query = """
+				SELECT CONCAT(d.name_ru, ' ', s.name_ru) AS deposit, 
+					m.name_ru AS mineral, 
+					i.area_ha, i.external_url, i.resource_id, i.id
+					FROM investments i 
+					INNER JOIN deposits_sites ds ON ds.id = i.deposit_site_id
+					INNER JOIN deposits d ON d.id = ds.deposit_id
+					INNER JOIN sites s ON s.id = ds.site_id
+					INNER JOIN minerals m ON m.id = i.mineral_id
+					WHERE i.id = %s
+			""";
+			g.cur.execute(query, [investment_id]);
+			row = g.cur.fetchone();
+			if not row:
+				return make_response(redirect(url_for("investments")));
+			return make_response(render_template("edit_investment.html",
+					permissions = get_permissions(resource_id), 
+					investment_id = investment_id,
+					deposit = row["deposit"],
+					mineral = row["mineral"],
+					area_ha = row["area_ha"],
+					external_url = row["external_url"],
+					error = u"Неверное значение для площади"
+					));
+
+		query = "UPDATE investments SET area_ha = %s, external_url = %s WHERE id = %s";
+		g.cur.execute(query, [area_ha, external_url, investment_id]);
+		g.db.commit();
+
+		presentation = request.files["presentation"];
+		description = request.files["description"];
+
+		presentation_uuid = get_uuid();
+		description_uuid = get_uuid();
+
+		if presentation:
+			fh = open(config["FILE_STORAGE_DIR"] + "/" + presentation_uuid + ".pdf", "w+");
+			fh.write(presentation.read());
+			fh.close();
+			
+			query = "UPDATE investments SET presentation_url_ru = %s WHERE id = %s";
+			g.cur.execute(query, [presentation_uuid + ".pdf", investment_id]);
+			g.db.commit();
+
+		if description:
+			fh = open(config["FILE_STORAGE_DIR"] + "/" + description_uuid + ".pdf", "w+");
+			fh.write(description.read());
+			fh.close();
+
+			query = "UPDATE investments SET description_url_ru = %s WHERE id = %s";
+			g.cur.execute(query, [description_uuid + ".pdf", investment_id]);
+			g.db.commit();
+
+		return make_response(redirect(url_for("investments")));
+
+
+@app.route("/delete_investment/")
+def delete_investment():
+	if not ip_based_access_control(request.remote_addr, "192.168.0.0"):
+		return redirect(url_for('denied'));
+	if not is_valid_session(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_admin(request.cookies.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	if not is_valid_hash(request.cookies.get("token", None), request.args.get("token", None)):
+		return make_response(redirect(url_for("login")));
+	investment_id = request.args.get("investment_id", None);
+	query = """
+			DELETE FROM resources 
+				WHERE id = (SELECT resource_id FROM investments WHERE id = %s)
+		""";
+	g.cur.execute(query, [investment_id]);
+	g.db.commit();
+	return make_response(redirect(url_for("investments")));
 
 if __name__ == "__main__":
 	app.run(port = 5002, host="0.0.0.0");

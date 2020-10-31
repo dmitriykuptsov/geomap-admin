@@ -13,5 +13,7 @@ config = {
 	"DB": "geomap",
 	"DB_HOST": "localhost",
 	"SERVER_NONCE": "oUE[EOQr|!?rGo4Xe]s(u35jVYBK7&e'n/c:DCIz9+$]KVyEQM4HeJ6b?Q:CQA>J",
-	"MASTER_SECRET": "MlJ*gHKp'@'_S9usCbp^^VRjkL1jO=zT"
+	"MASTER_SECRET": "MlJ*gHKp'@'_S9usCbp^^VRjkL1jO=zT",
+	"GOOGLE_MAPS_API_URL": "https://maps.googleapis.com/maps/api/js?key=AIzaSyAp_7Pqb7Lhu_UJCi7f3BzPDpSg1mB6sVs&callback=initMap",
+	"FILE_STORAGE_DIR": "/opt/geomap/storage/"
 }
