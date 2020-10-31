@@ -3722,11 +3722,11 @@ def edit_deposit_site():
 		try:
 			lat = float(lat);
 		except:
-			lat = -100;
+			lat = -90;
 		try:
 			lon = float(lon);
 		except:
-			lon = - 360;
+			lon = -180;
 
 		if lat < -90.0 or lat > 90.0:
 			resource_id = get_resource_id_for_deposit_site(deposit_site_id);
